@@ -1,0 +1,23 @@
+[package]
+name = "providence"
+version = "0.1.0"
+edition = "2021"
+description = "👁"
+
+[dependencies]
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "2ee531a5c51f2ad7a84f22e68dff812b2e9c4de3" }
+uwuhi = "0.2.0"
+pawawwewism = "0.1.0"
+log = "0.4.17"
+serde = { version = "1.0.145", features = ["derive"] }
+bincode = "1.3.3"
+spade = "2.0.0"
+rustc-hash = "1.1.0"
+indexmap = "1.9.1"
+if-addrs = "0.7.0"
+
+[workspace]
+members = [".", "viewer"]
+
+[profile.dev]
+opt-level = 2
