@@ -7,16 +7,14 @@ const SCALE: f32 = 80.0;
 
 #[macroquad::main("Providence Viewer")]
 async fn main() -> io::Result<()> {
-    let mut sub = Subscriber::spawn_blocking()?;
+    let mut sub = Subscriber::autoconnect()?;
+
+    let mut msg = sub.block()?;
 
     loop {
-        let msg = match sub.next() {
-            Some(msg) => msg,
-            None => {
-                sub.block();
-                continue;
-            }
-        };
+        if let Some(next) = sub.next() {
+            msg = next;
+        }
 
         let width = screen_width();
         let height = screen_height();

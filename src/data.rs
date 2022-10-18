@@ -3,6 +3,7 @@ use std::{
     io::{self, BufRead, Write},
 };
 
+use async_std::io::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,12 +14,40 @@ pub struct TrackingMessage {
 
 impl TrackingMessage {
     pub fn read<R: BufRead>(mut read: R) -> io::Result<Self> {
-        let val = bincode::deserialize_from(&mut read).map_err(convert_error)?;
+        let mut size = [0; 4];
+        read.read_exact(&mut size)?;
+        let size = u32::from_le_bytes(size);
+        let val = bincode::deserialize_from(&mut read.take(size.into())).map_err(convert_error)?;
         Ok(val)
     }
 
     pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        let size = bincode::serialized_size(self).map_err(convert_error)?;
+        writer.write_all(&u32::try_from(size).unwrap().to_le_bytes())?;
         bincode::serialize_into(&mut writer, self).map_err(convert_error)?;
+        Ok(())
+    }
+
+    pub async fn async_read<R: async_std::io::Read + Unpin>(mut read: R) -> io::Result<Self> {
+        let mut size = [0; 4];
+        read.read_exact(&mut size).await?;
+        let size = u32::from_le_bytes(size);
+        let mut buf = vec![0; size as usize];
+        read.read_exact(&mut buf).await?;
+        let val = bincode::deserialize_from(&*buf).map_err(convert_error)?;
+        Ok(val)
+    }
+
+    pub async fn async_write<W: async_std::io::Write + Unpin>(
+        &self,
+        mut writer: W,
+    ) -> io::Result<()> {
+        let size = bincode::serialized_size(self).map_err(convert_error)?;
+        writer
+            .write_all(&u32::try_from(size).unwrap().to_le_bytes())
+            .await?;
+        let buf = bincode::serialize(self).map_err(convert_error)?;
+        writer.write_all(&buf).await?;
         Ok(())
     }
 }
