@@ -6,8 +6,7 @@ description = "👁"
 
 [dependencies]
 zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "2ee531a5c51f2ad7a84f22e68dff812b2e9c4de3" }
-#uwuhi = "0.2.0"
-uwuhi-async = { path = "../uwuhi/uwuhi-async" }
+uwuhi-async = "0.3.0"
 pawawwewism = "0.1.0"
 log = "0.4.17"
 serde = { version = "1.0.145", features = ["derive"] }
