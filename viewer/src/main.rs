@@ -19,17 +19,12 @@ async fn main() -> io::Result<()> {
         let width = screen_width();
         let height = screen_height();
 
+        let [x, y] = msg.head_position;
+        let [x, y] = [x * width, y * height];
+
         clear_background(BLACK);
-        render_eye(
-            &msg.left_eye,
-            SCALE,
-            Vec3::new(width * 0.5 - SCALE * 1.5, height * 0.5, 0.0),
-        );
-        render_eye(
-            &msg.right_eye,
-            SCALE,
-            Vec3::new(width * 0.5 + SCALE * 1.5, height * 0.5, 0.0),
-        );
+        render_eye(&msg.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
+        render_eye(&msg.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
         next_frame().await;
     }
 }

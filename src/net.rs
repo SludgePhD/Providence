@@ -244,6 +244,8 @@ mod tests {
         }
 
         TrackingMessage {
+            head_position: [1.0, 2.0],
+            head_angle_radians: 0.5,
             left_eye: mk_eye(),
             right_eye: mk_eye(),
         }

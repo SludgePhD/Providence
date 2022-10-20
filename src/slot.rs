@@ -171,6 +171,10 @@ impl<T: Clone> SlotReader<T> {
 }
 
 /// An error that indicates that the [`SlotWriter`] connected to a [`SlotReader`] has been dropped.
+///
+/// This type deliberately does not implement the [`std::error::Error`] trait. It cannot convey any
+/// useful information about *why* the [`SlotWriter`] was dropped, so the caller has to determine a
+/// root cause or recover from the error.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Disconnected;
 

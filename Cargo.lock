@@ -3722,7 +3722,7 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 [[package]]
 name = "zaru"
 version = "0.1.0"
-source = "git+https://github.com/SludgePhD/Zaru.git?rev=2ee531a5c51f2ad7a84f22e68dff812b2e9c4de3#2ee531a5c51f2ad7a84f22e68dff812b2e9c4de3"
+source = "git+https://github.com/SludgePhD/Zaru.git?rev=e0d3b6c88ab8b6b7d4d8fe949e6b52d482e1967e#e0d3b6c88ab8b6b7d4d8fe949e6b52d482e1967e"
 dependencies = [
  "anyhow",
  "bytemuck",

@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackingMessage {
+    /// In range 0..1
+    pub head_position: [f32; 2],
+    pub head_angle_radians: f32,
     pub left_eye: Eye,
     pub right_eye: Eye,
 }

@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::io;
+use std::{cmp, io};
 
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence::data::TrackingMessage;
@@ -7,7 +7,7 @@ use providence::net::Publisher;
 use providence::triangulate::Triangulator;
 use zaru::face::detection::Detector;
 use zaru::face::eye::{EyeLandmarker, EyeLandmarks};
-use zaru::face::landmark::mediapipe_facemesh::Landmarker;
+use zaru::face::landmark::mediapipe_facemesh::{LandmarkResult, Landmarker};
 use zaru::filter::ema::Ema;
 use zaru::image::{Image, RotatedRect};
 use zaru::landmark::{LandmarkFilter, LandmarkTracker};
@@ -44,6 +44,7 @@ fn main() -> Result<(), Error> {
         // is *very* expensive for some reason, so we only flip the final result.
         let image = webcam.read()?;
 
+        let (landmarks, landmarks_handle) = promise();
         let (left_eye, left_eye_handle) = promise();
         let (right_eye, right_eye_handle) = promise();
         let (left_eye_lm, left_eye_lm_handle) = promise();
@@ -51,6 +52,7 @@ fn main() -> Result<(), Error> {
         let (message, message_handle) = promise();
         face_tracker.send(FaceTrackParams {
             image,
+            landmarks,
             left_eye,
             right_eye,
         });
@@ -63,6 +65,7 @@ fn main() -> Result<(), Error> {
             landmarks: right_eye_lm,
         });
         assembler.send(AssemblerParams {
+            landmarks: landmarks_handle,
             left_eye: left_eye_lm_handle,
             right_eye: right_eye_lm_handle,
             message,
@@ -82,6 +85,7 @@ fn main() -> Result<(), Error> {
 }
 
 struct AssemblerParams {
+    landmarks: PromiseHandle<LandmarkResult>,
     left_eye: PromiseHandle<(EyeLandmarks, Image)>,
     right_eye: PromiseHandle<(EyeLandmarks, Image)>,
     message: Promise<TrackingMessage>,
@@ -95,10 +99,15 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
     Worker::builder().name("assembler").spawn(
         move |AssemblerParams {
+                  landmarks,
                   left_eye,
                   right_eye,
                   message,
               }| {
+            let face_landmark = match landmarks.block() {
+                Ok(lms) => lms,
+                Err(_) => return,
+            };
             let (left, left_img) = match left_eye.block() {
                 Ok(eye) => eye,
                 Err(_) => return,
@@ -116,6 +125,9 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let (mut left, mut right) = (right, left);
             left.flip_horizontal_in_place();
             right.flip_horizontal_in_place();
+            // Face landmarks have been adjusted to be in range 0..1 earlier.
+            let [x, y, _] = face_landmark.landmarks().average();
+            let head_position = [1.0 - x, y];
 
             let guard = t_triangulate.start();
             let left_eye = match tri.triangulate_eye(&left, &left_img) {
@@ -128,6 +140,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             };
             drop(guard);
             message.fulfill(TrackingMessage {
+                head_position,
+                head_angle_radians: face_landmark.rotation_radians(),
                 left_eye,
                 right_eye,
             });
@@ -139,6 +153,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
 struct FaceTrackParams {
     image: Image,
+    landmarks: Promise<LandmarkResult>,
     left_eye: Promise<(Image, RotatedRect)>,
     right_eye: Promise<(Image, RotatedRect)>,
 }
@@ -160,6 +175,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
     Worker::builder().name("face tracker").spawn(
         move |FaceTrackParams {
                   image,
+                  landmarks,
                   left_eye,
                   right_eye,
               }| {
@@ -186,6 +202,13 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
             }
 
             if let Some(res) = tracker.track(&mut landmarker, &image) {
+                let max = cmp::max(image.width(), image.height()) as f32;
+                let mut lms = res.estimation().clone();
+                lms.landmarks_mut()
+                    .map_positions(|[x, y, z]| [x / max, y / max, z]);
+
+                landmarks.fulfill(lms);
+
                 let left = res.estimation().left_eye();
                 let right = res.estimation().right_eye();
 
