@@ -70,10 +70,10 @@ impl Publisher {
             InstanceDetails::new(format!("{name}.local").parse().unwrap(), port),
         );
 
-        // (contains `Task`s so that they make progress without us polling them)
         let (message_writer, message_reader) = slot::<Arc<TrackingMessage>>();
         let advertiser = Task::spawn(async move { advertiser.listen().await });
         let listener = Task::spawn(async move {
+            // (contains `Task`s so that they make progress without us polling them)
             let mut streams = Vec::<Task<_>>::new();
             let listener = async_std::net::TcpListener::from(tcp_listener);
 
