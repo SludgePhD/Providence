@@ -239,4 +239,11 @@ mod tests {
         assert_eq!(r.block(), Ok(123));
         assert_eq!(r2.block(), Ok(123));
     }
+
+    #[test]
+    fn slot_rw_is_send_sync() {
+        fn check<T: Send + Sync>() {}
+        check::<SlotWriter<()>>();
+        check::<SlotReader<()>>();
+    }
 }

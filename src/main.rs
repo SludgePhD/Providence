@@ -7,11 +7,12 @@ use providence::net::Publisher;
 use providence::triangulate::Triangulator;
 use zaru::face::detection::Detector;
 use zaru::face::eye::{EyeLandmarker, EyeLandmarks};
-use zaru::face::landmark::mediapipe_facemesh::{LandmarkResult, Landmarker};
+use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, Landmarker};
 use zaru::filter::ema::Ema;
 use zaru::image::{Image, RotatedRect};
 use zaru::landmark::{LandmarkFilter, LandmarkTracker};
 use zaru::num::TotalF32;
+use zaru::procrustes::ProcrustesAnalyzer;
 use zaru::resolution::AspectRatio;
 use zaru::timer::{FpsCounter, Timer};
 use zaru::webcam::{ParamPreference, Webcam, WebcamOptions};
@@ -93,8 +94,11 @@ struct AssemblerParams {
 
 fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
     let mut fps = FpsCounter::new("assembler");
+    let mut t_procrustes = Timer::new("procrustes");
     let mut t_triangulate = Timer::new("triangulate");
 
+    let mut procrustes_analyzer =
+        ProcrustesAnalyzer::new(mediapipe_facemesh::reference_positions());
     let mut tri = Triangulator::default();
 
     Worker::builder().name("assembler").spawn(
@@ -108,6 +112,18 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 Ok(lms) => lms,
                 Err(_) => return,
             };
+
+            let procrustes_result = t_procrustes.time(|| {
+                procrustes_analyzer.analyze(face_landmark.landmarks().positions().iter().map(
+                    |&[x, y, z]| {
+                        // Flip Y to bring us to canonical 3D coordinates (where Y points up).
+                        // Only rotation matters, so we don't have to correct for the added
+                        // translation.
+                        (x, -y, z)
+                    },
+                ))
+            });
+
             let (left, left_img) = match left_eye.block() {
                 Ok(eye) => eye,
                 Err(_) => return,
@@ -141,7 +157,12 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             drop(guard);
             message.fulfill(TrackingMessage {
                 head_position,
-                head_angle_radians: face_landmark.rotation_radians(),
+                head_rotation: procrustes_result
+                    .rotation_as_quaternion()
+                    .as_vector()
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
                 left_eye,
                 right_eye,
             });

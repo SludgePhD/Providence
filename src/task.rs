@@ -128,7 +128,7 @@ mod tests {
         let payload = catch_unwind(|| task.block()).unwrap_err();
         let msg = payload
             .downcast::<String>()
-            .expect("panic payload not a `String`");
+            .expect("panic payload should be a `String`");
         assert!(msg.contains("task panic 123"));
     }
 
@@ -146,7 +146,13 @@ mod tests {
         let payload = catch_unwind(|| drop(task)).unwrap_err();
         let msg = payload
             .downcast::<String>()
-            .expect("panic payload not a `String`");
+            .expect("panic payload should be a `String`");
         assert!(msg.contains("task panic 456"));
+    }
+
+    #[test]
+    fn task_is_send_sync() {
+        fn check<T: Send + Sync>() {}
+        check::<Task<()>>();
     }
 }

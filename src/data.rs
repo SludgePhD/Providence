@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 pub struct TrackingMessage {
     /// In range 0..1
     pub head_position: [f32; 2],
-    pub head_angle_radians: f32,
+    /// Head rotation as a quaternion.
+    ///
+    /// The 4 floats are `r`, `x`, `y`, `z` in `q = r * x*i * y*j * z*k`.
+    pub head_rotation: [f32; 4],
     pub left_eye: Eye,
     pub right_eye: Eye,
 }

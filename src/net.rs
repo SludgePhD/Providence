@@ -3,14 +3,16 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener},
     ops::ControlFlow,
     sync::Arc,
+    time::Duration,
 };
 
 use uwuhi_async::{
     packet::name::Label,
-    resolver::SyncResolver,
+    resolver::{AsyncResolver, SyncResolver},
     service::{
-        advertising::AsyncAdvertiser, discovery::SyncDiscoverer, InstanceDetails, Service,
-        ServiceInstance, ServiceTransport,
+        advertising::AsyncAdvertiser,
+        discovery::{AsyncDiscoverer, SyncDiscoverer},
+        InstanceDetails, Service, ServiceInstance, ServiceTransport,
     },
 };
 
@@ -128,7 +130,7 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
-    pub fn autoconnect() -> io::Result<Self> {
+    pub fn autoconnect_blocking() -> io::Result<Self> {
         let service = Service::new(Label::new(SERVICE), ServiceTransport::TCP);
         let mut discoverer = SyncDiscoverer::new_multicast_v4()?;
 
@@ -165,6 +167,48 @@ impl Subscriber {
         Self::connect(SocketAddrV4::new(ip, details.port()))
     }
 
+    pub async fn autoconnect_async() -> io::Result<Self> {
+        let service = Service::new(Label::new(SERVICE), ServiceTransport::TCP);
+        let mut discoverer = AsyncDiscoverer::new_multicast_v4().await?;
+
+        let mut instance = None;
+        discoverer.set_discovery_timeout(Duration::MAX)?;
+        discoverer
+            .discover_instances(&service, |new| {
+                instance = Some(new.clone());
+                ControlFlow::Break(())
+            })
+            .await?;
+        let details = match instance {
+            Some(instance) => discoverer.load_instance_details(&instance).await?,
+            None => {
+                // The timeout is ~infinite, good luck hitting this
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("timed out while discovering `{}` network service", SERVICE),
+                ));
+            }
+        };
+        log::info!(
+            "discovered providence on {}:{}",
+            details.host(),
+            details.port(),
+        );
+
+        let mut res = AsyncResolver::new_multicast_v4().await?;
+        let mut ips = res
+            .resolve_domain(details.host())
+            .await?
+            .filter_map(|ip| match ip {
+                IpAddr::V4(ip) => Some(ip),
+                IpAddr::V6(_) => None,
+            });
+        let ip = ips.next().ok_or(io::ErrorKind::TimedOut)?;
+        log::info!("resolved server IP: {}", ip);
+
+        Self::connect(SocketAddrV4::new(ip, details.port()))
+    }
+
     pub fn connect(addr: SocketAddrV4) -> io::Result<Self> {
         let (mut writer, reader) = slot();
 
@@ -183,12 +227,14 @@ impl Subscriber {
         })
     }
 
-    pub fn get(&mut self) -> Option<Arc<TrackingMessage>> {
-        self.reader.get()
+    pub fn get(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
+        self.ping()?;
+        Ok(self.reader.get())
     }
 
-    pub fn next(&mut self) -> Option<Arc<TrackingMessage>> {
-        self.reader.next()
+    pub fn next(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
+        self.ping()?;
+        Ok(self.reader.next())
     }
 
     pub fn block(&mut self) -> io::Result<Arc<TrackingMessage>> {
@@ -197,6 +243,14 @@ impl Subscriber {
             .block()
             .map_err(|_| self.task.take().unwrap().block().unwrap_err())
     }
+
+    fn ping(&mut self) -> io::Result<()> {
+        if self.reader.is_disconnected() {
+            Err(self.task.take().unwrap().block().unwrap_err())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -204,6 +258,13 @@ mod tests {
     use crate::data::{Eye, Image, Mesh, Vertex};
 
     use super::*;
+
+    #[test]
+    fn pub_sub_are_send_sync() {
+        fn check<T: Send + Sync>() {}
+        check::<Publisher>();
+        check::<Subscriber>();
+    }
 
     #[test]
     fn publisher_exits() {
@@ -245,7 +306,7 @@ mod tests {
 
         TrackingMessage {
             head_position: [1.0, 2.0],
-            head_angle_radians: 0.5,
+            head_rotation: [1.0, 2.0, 3.0, 4.0],
             left_eye: mk_eye(),
             right_eye: mk_eye(),
         }

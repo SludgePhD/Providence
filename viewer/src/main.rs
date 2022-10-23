@@ -7,12 +7,12 @@ const SCALE: f32 = 80.0;
 
 #[macroquad::main("Providence Viewer")]
 async fn main() -> io::Result<()> {
-    let mut sub = Subscriber::autoconnect()?;
+    let mut sub = Subscriber::autoconnect_blocking()?;
 
     let mut msg = sub.block()?;
 
     loop {
-        if let Some(next) = sub.next() {
+        if let Some(next) = sub.next()? {
             msg = next;
         }
 
