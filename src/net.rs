@@ -306,7 +306,7 @@ mod tests {
 
         TrackingMessage {
             head_position: [1.0, 2.0],
-            head_rotation: [1.0, 2.0, 3.0, 4.0],
+            head_rotation: Default::default(),
             left_eye: mk_eye(),
             right_eye: mk_eye(),
         }
