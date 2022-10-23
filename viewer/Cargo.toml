@@ -1,9 +1,0 @@
-[package]
-name = "viewer"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-providence = { path = ".." }
-macroquad = "0.3.24"
