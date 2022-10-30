@@ -25,6 +25,8 @@ async fn main() -> io::Result<()> {
         clear_background(BLACK);
         render_eye(&msg.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
         render_eye(&msg.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
+        let [x, y, z, w] = msg.head_rotation;
+        render_rotation(Quat::from_xyzw(x, y, z, w));
         next_frame().await;
     }
 }
@@ -51,4 +53,24 @@ fn render_eye(eye: &Eye, scale: f32, offset: Vec3) {
     };
 
     draw_mesh(&mesh);
+}
+
+fn render_rotation(rot: Quat) {
+    // FIXME: these are all kinds of wrong
+    let (yaw, pitch, roll) = rot.to_euler(EulerRot::YXZ);
+    draw_text_centered(&format!("X={:.02}°", pitch.to_degrees()), 20.0);
+    draw_text_centered(&format!("Y={:.02}°", yaw.to_degrees()), 40.0);
+    draw_text_centered(&format!("Z={:.02}°", roll.to_degrees()), 60.0);
+}
+
+fn draw_text_centered(text: &str, y: f32) {
+    const FONT_SIZE: f32 = 30.0;
+    let dim = measure_text(text, None, FONT_SIZE as u16, 1.0);
+    draw_text(
+        text,
+        screen_width() * 0.5 - dim.width * 0.5,
+        y,
+        FONT_SIZE,
+        GRAY,
+    );
 }
