@@ -108,10 +108,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                   right_eye,
                   message,
               }| {
-            let face_landmark = match landmarks.block() {
-                Ok(lms) => lms,
-                Err(_) => return,
-            };
+            let Ok(face_landmark) = landmarks.block() else { return };
 
             let procrustes_result = t_procrustes.time(|| {
                 procrustes_analyzer.analyze(face_landmark.landmarks().positions().iter().map(
@@ -124,14 +121,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
-            let (left, left_img) = match left_eye.block() {
-                Ok(eye) => eye,
-                Err(_) => return,
-            };
-            let (right, right_img) = match right_eye.block() {
-                Ok(eye) => eye,
-                Err(_) => return,
-            };
+            let Ok((left, left_img)) = left_eye.block() else { return };
+            let Ok((right, right_img)) = right_eye.block() else { return };
 
             // Up until now, we were using the webcam images as-is (non-mirrored), so from the users
             // perspective left and right eye are swapped and their textures flipped. Fix that now.
@@ -146,14 +137,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let head_position = [1.0 - x, y];
 
             let guard = t_triangulate.start();
-            let left_eye = match tri.triangulate_eye(&left, &left_img) {
-                Ok(eye) => eye,
-                Err(_) => return,
-            };
-            let right_eye = match tri.triangulate_eye(&right, &right_img) {
-                Ok(eye) => eye,
-                Err(_) => return,
-            };
+            let Ok(left_eye) = tri.triangulate_eye(&left, &left_img) else { return };
+            let Ok(right_eye) = tri.triangulate_eye(&right, &right_img) else { return };
             drop(guard);
             message.fulfill(TrackingMessage {
                 head_position,

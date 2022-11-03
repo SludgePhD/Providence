@@ -48,7 +48,7 @@ impl Publisher {
                 return Err(io::Error::new(
                     io::ErrorKind::AddrNotAvailable,
                     "no local network interface with private IPv4 address found",
-                ))
+                ));
             }
         };
 
@@ -145,7 +145,7 @@ impl Subscriber {
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
                     format!("timed out while discovering `{}` network service", SERVICE),
-                ))
+                ));
             }
         };
         log::info!(

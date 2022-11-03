@@ -105,13 +105,9 @@ impl<T: Clone> SlotReader<T> {
     /// Returns [`None`] if no value has ever been written to the slot.
     pub fn get(&mut self) -> Option<T> {
         let guard = self.slot.data.lock().unwrap();
-        match &guard.value {
-            Some(value) => {
-                self.read_gen = guard.write_gen;
-                Some(value.clone())
-            }
-            None => None,
-        }
+        let value = guard.value.as_ref()?;
+        self.read_gen = guard.write_gen;
+        Some(value.clone())
     }
 
     /// Retrieves the next value written to the slot.
@@ -121,13 +117,12 @@ impl<T: Clone> SlotReader<T> {
     /// [`SlotReader::get`] instead.
     pub fn next(&mut self) -> Option<T> {
         let guard = self.slot.data.lock().unwrap();
-        match &guard.value {
-            Some(value) if guard.write_gen != self.read_gen => {
-                self.read_gen = guard.write_gen;
-                Some(value.clone())
-            }
-            _ => None,
+        let value = guard.value.as_ref()?;
+        if guard.write_gen == self.read_gen {
+            return None;
         }
+        self.read_gen = guard.write_gen;
+        Some(value.clone())
     }
 
     /// Blocks the calling thread until a new value is available, and returns that value.
