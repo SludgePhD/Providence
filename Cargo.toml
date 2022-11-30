@@ -5,7 +5,7 @@ edition = "2021"
 description = "👁"
 
 [dependencies]
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "e0d3b6c88ab8b6b7d4d8fe949e6b52d482e1967e" }
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "42a232185074c1e18f07187d25a5ab51bf52fe06" }
 uwuhi-async = "0.3.0"
 pawawwewism = "0.1.0"
 log = "0.4.17"
@@ -17,9 +17,10 @@ indexmap = "1.9.1"
 if-addrs = "0.7.0"
 async-std = "1.12.0"
 futures = "0.3.24"
+glam = "0.22.0"
 
 [dev-dependencies]
-env_logger = "0.9.1"
+env_logger = "0.10.0"
 macroquad = "0.3.24"
 
 [profile.dev]

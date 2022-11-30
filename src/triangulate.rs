@@ -10,6 +10,8 @@ use zaru::{
     num::TotalF32,
 };
 
+// FIXME: drop the `spade` crate and just define a fixed tessellation by hand
+
 #[derive(Clone, Copy)]
 struct Pos([f32; 2]);
 

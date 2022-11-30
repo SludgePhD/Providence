@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::{cmp, io};
 
+use glam::Quat;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence::data::TrackingMessage;
 use providence::net::Publisher;
@@ -121,6 +122,17 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
+            #[allow(unused)]
+            let mut head_rotation: [f32; 4] = procrustes_result
+                .rotation()
+                .coords
+                .as_slice()
+                .try_into()
+                .unwrap();
+            // FIXME: Zaru's procrustes analysis does not work correctly with its landmark model, so
+            // use just the rotation from the landmark result.
+            head_rotation = Quat::from_rotation_z(face_landmark.rotation_radians()).to_array();
+
             let Ok((left, left_img)) = left_eye.block() else { return };
             let Ok((right, right_img)) = right_eye.block() else { return };
 
@@ -142,12 +154,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             drop(guard);
             message.fulfill(TrackingMessage {
                 head_position,
-                head_rotation: procrustes_result
-                    .rotation_as_quaternion()
-                    .as_vector()
-                    .as_slice()
-                    .try_into()
-                    .unwrap(),
+                head_rotation,
                 left_eye,
                 right_eye,
             });
