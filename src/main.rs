@@ -100,7 +100,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
     let mut procrustes_analyzer =
         ProcrustesAnalyzer::new(mediapipe_facemesh::reference_positions());
-    let mut tri = Triangulator::default();
+    let mut tri = Triangulator::new();
 
     Worker::builder().name("assembler").spawn(
         move |AssemblerParams {
@@ -149,8 +149,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let head_position = [1.0 - x, y];
 
             let guard = t_triangulate.start();
-            let Ok(left_eye) = tri.triangulate_eye(&left, &left_img) else { return };
-            let Ok(right_eye) = tri.triangulate_eye(&right, &right_img) else { return };
+            let Ok(left_eye) = tri.triangulate_eye(&left, &left_img, true) else { return };
+            let Ok(right_eye) = tri.triangulate_eye(&right, &right_img, false) else { return };
             drop(guard);
             message.fulfill(TrackingMessage {
                 head_position,
