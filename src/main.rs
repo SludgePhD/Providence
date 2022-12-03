@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::{cmp, io};
 
-use glam::Quat;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence::data::TrackingMessage;
 use providence::net::Publisher;
@@ -122,16 +121,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
-            #[allow(unused)]
-            let mut head_rotation: [f32; 4] = procrustes_result
-                .rotation()
-                .coords
-                .as_slice()
-                .try_into()
-                .unwrap();
-            // FIXME: Zaru's procrustes analysis does not work correctly with its landmark model, so
-            // use just the rotation from the landmark result.
-            head_rotation = Quat::from_rotation_z(face_landmark.rotation_radians()).to_array();
+            let quat = procrustes_result.rotation();
+            let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let Ok((left, left_img)) = left_eye.block() else { return };
             let Ok((right, right_img)) = right_eye.block() else { return };
@@ -218,7 +209,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
                 let max = cmp::max(image.width(), image.height()) as f32;
                 let mut lms = res.estimation().clone();
                 lms.landmarks_mut()
-                    .map_positions(|[x, y, z]| [x / max, y / max, z]);
+                    .map_positions(|[x, y, z]| [x / max, y / max, z / max]);
 
                 landmarks.fulfill(lms);
 

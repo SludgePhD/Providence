@@ -1136,12 +1136,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "518faa5064866338b013ff9b2350dc318e14cc4fcd6cb8206d7e7c9886c98815"
 
 [[package]]
-name = "glam"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f597d56c1bd55a811a1be189459e8fad2bbc272616375602443bdfb37fa774"
-
-[[package]]
 name = "globset"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1608,7 +1602,7 @@ checksum = "19c4f0576d6468cb31de5ba0b3c8eb56cfd95ed3edfee380ac339309b4830074"
 dependencies = [
  "bumpalo",
  "fontdue",
- "glam 0.21.3",
+ "glam",
  "image",
  "macroquad_macro",
  "miniquad",
@@ -1803,9 +1797,9 @@ dependencies = [
 
 [[package]]
 name = "nalgebra"
-version = "0.31.2"
+version = "0.31.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da388c517f7c8540918d00f7aed9864c1ead01a14a0cc21513b171857119de12"
+checksum = "20bd243ab3dbb395b39ee730402d2e5405e448c75133ec49cc977762c4cba3d1"
 dependencies = [
  "approx",
  "matrixmultiply",
@@ -2379,10 +2373,10 @@ dependencies = [
  "bincode",
  "env_logger 0.10.0",
  "futures",
- "glam 0.22.0",
  "if-addrs",
  "log",
  "macroquad",
+ "nalgebra",
  "pawawwewism",
  "serde",
  "uwuhi-async",
