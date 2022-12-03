@@ -156,7 +156,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 right_eye,
             });
 
-            fps.tick_with([&t_triangulate]);
+            fps.tick_with([&t_procrustes, &t_triangulate]);
         },
     )
 }
