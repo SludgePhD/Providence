@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::{cmp, io};
 
+use nalgebra::UnitQuaternion;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence::data::TrackingMessage;
 use providence::net::Publisher;
@@ -17,6 +18,8 @@ use zaru::resolution::AspectRatio;
 use zaru::timer::{FpsCounter, Timer};
 use zaru::webcam::{ParamPreference, Webcam, WebcamOptions};
 use zaru::Error;
+
+const HEAD_PITCH_MUL: f32 = 5.0;
 
 fn main() -> Result<(), Error> {
     zaru::init_logger!();
@@ -121,7 +124,10 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
-            let quat = procrustes_result.rotation();
+            // Exaggerate sideways head tilts a bit, because they're very hard to notice otherwise.
+            let (r, mut p, y) = procrustes_result.rotation().euler_angles();
+            p *= HEAD_PITCH_MUL;
+            let quat = UnitQuaternion::from_euler_angles(r, p, y);
             let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let Ok((left, left_img)) = left_eye.block() else { return };
