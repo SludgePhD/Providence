@@ -95,10 +95,6 @@ impl Triangulator {
             pt[1] = pt[1] - min[1];
         }
         let max = [max[0] - min[0], max[1] - min[1]];
-        let mkvertex = |[x, y]: [f32; 2]| Vertex {
-            position: [(x - max[0] * 0.5) / range, (y - max[1] * 0.5) / range],
-            uv: [x / max[0], y / max[1]],
-        };
 
         let mesh = if flip {
             &mut self.flipped_mesh
@@ -106,7 +102,10 @@ impl Triangulator {
             &mut self.mesh
         };
         mesh.vertices.clear();
-        mesh.vertices.extend(points.iter().map(|&pt| mkvertex(pt)));
+        mesh.vertices.extend(points.iter().map(|&[x, y]| Vertex {
+            position: [(x - max[0] * 0.5) / range, (y - max[1] * 0.5) / range],
+            uv: [x / max[0], y / max[1]],
+        }));
 
         Ok(Eye {
             texture: data::Image {
