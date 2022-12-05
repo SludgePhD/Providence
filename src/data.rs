@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackingMessage {
-    /// In range 0..1
+    /// XY position of the center of the face (in range 0..1).
+    ///
+    /// X points right, Y points down.
     pub head_position: [f32; 2],
     /// Head rotation as a quaternion.
     ///
