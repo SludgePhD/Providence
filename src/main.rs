@@ -124,10 +124,12 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
-            // Exaggerate sideways head tilts a bit, because they're very hard to notice otherwise.
             let (r, mut p, y) = procrustes_result.rotation().euler_angles();
+            // Exaggerate sideways head tilts a bit, because they're very hard to notice otherwise.
             p *= HEAD_PITCH_MUL;
-            let quat = UnitQuaternion::from_euler_angles(r, p, y);
+            // Invert the angles so that the reported head rotation matches what looking in a mirror
+            // is like.
+            let quat = UnitQuaternion::from_euler_angles(-r, -p, -y);
             let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let Ok((left, left_img)) = left_eye.block() else { return };
