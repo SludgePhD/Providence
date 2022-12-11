@@ -7,11 +7,11 @@ use providence::data::TrackingMessage;
 use providence::net::Publisher;
 use providence::triangulate::Triangulator;
 use zaru::face::detection::Detector;
-use zaru::face::eye::{EyeLandmarker, EyeLandmarks};
-use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, Landmarker};
+use zaru::face::eye::{EyeLandmarks, EyeNetwork};
+use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, MediaPipeFaceMesh};
 use zaru::filter::ema::Ema;
 use zaru::image::{Image, RotatedRect};
-use zaru::landmark::{LandmarkFilter, LandmarkTracker};
+use zaru::landmark::{Estimator, LandmarkFilter, LandmarkTracker, Network};
 use zaru::num::TotalF32;
 use zaru::procrustes::ProcrustesAnalyzer;
 use zaru::resolution::AspectRatio;
@@ -19,15 +19,10 @@ use zaru::timer::{FpsCounter, Timer};
 use zaru::webcam::{ParamPreference, Webcam, WebcamOptions};
 use zaru::Error;
 
-const HEAD_PITCH_MUL: f32 = 5.0;
-
 fn main() -> Result<(), Error> {
     zaru::init_logger!();
 
-    let eye_input_aspect = EyeLandmarker::new()
-        .input_resolution()
-        .aspect_ratio()
-        .unwrap();
+    let eye_input_aspect = EyeNetwork.cnn().input_resolution().aspect_ratio().unwrap();
 
     let mut face_tracker = face_track_worker(eye_input_aspect)?;
     let mut left_eye_worker = eye_worker(Eye::Left)?;
@@ -124,12 +119,10 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 ))
             });
 
-            let (r, mut p, y) = procrustes_result.rotation().euler_angles();
-            // Exaggerate sideways head tilts a bit, because they're very hard to notice otherwise.
-            p *= HEAD_PITCH_MUL;
+            let (r, p, y) = procrustes_result.rotation().euler_angles();
             // Invert the angles so that the reported head rotation matches what looking in a mirror
             // is like.
-            let quat = UnitQuaternion::from_euler_angles(-r, -p, -y);
+            let quat = UnitQuaternion::from_euler_angles(-r, p, -y);
             let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let Ok((left, left_img)) = left_eye.block() else { return };
@@ -141,8 +134,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             left_img.flip_horizontal_in_place();
             right_img.flip_horizontal_in_place();
             let (mut left, mut right) = (right, left);
-            left.flip_horizontal_in_place();
-            right.flip_horizontal_in_place();
+            left.flip_horizontal_in_place(left_img.resolution());
+            right.flip_horizontal_in_place(right_img.resolution());
             // Face landmarks have been adjusted to be in range 0..1 earlier.
             let [x, y, _] = face_landmark.landmarks().average();
             let head_position = [1.0 - x, y];
@@ -180,8 +173,12 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
     let mut t_total = Timer::new("total");
 
     let mut detector = Detector::default();
-    let mut landmarker = Landmarker::new();
-    let mut tracker = LandmarkTracker::new(landmarker.input_resolution().aspect_ratio().unwrap());
+    let mut estimator = Estimator::new(MediaPipeFaceMesh);
+    estimator.set_filter(LandmarkFilter::new(
+        Ema::new(0.5),
+        LandmarkResult::NUM_LANDMARKS,
+    ));
+    let mut tracker = LandmarkTracker::new(estimator.input_resolution().aspect_ratio().unwrap());
     let input_ratio = detector.input_resolution().aspect_ratio().unwrap();
 
     Worker::builder().name("face tracker").spawn(
@@ -213,7 +210,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
                 }
             }
 
-            if let Some(res) = tracker.track(&mut landmarker, &image) {
+            if let Some(res) = tracker.track(&mut estimator, &image) {
                 let max = cmp::max(image.width(), image.height()) as f32;
                 let mut lms = res.estimation().clone();
                 lms.landmarks_mut()
@@ -237,7 +234,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
                 [&t_total]
                     .into_iter()
                     .chain(detector.timers())
-                    .chain(landmarker.timers()),
+                    .chain(estimator.timers()),
             );
         },
     )
@@ -260,7 +257,7 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
         Eye::Left => "left iris",
         Eye::Right => "right iris",
     };
-    let mut landmarker = EyeLandmarker::new();
+    let mut estimator = Estimator::new(EyeNetwork);
     let mut fps = FpsCounter::new(name);
     let mut filter = LandmarkFilter::new(Ema::new(0.5), 76);
 
@@ -274,10 +271,10 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
                 Err(_) => return,
             };
             let marks = match eye {
-                Eye::Left => landmarker.compute(&image),
+                Eye::Left => estimator.estimate(&image),
                 Eye::Right => {
-                    let marks = landmarker.compute(&image.flip_horizontal());
-                    marks.flip_horizontal_in_place();
+                    let marks = estimator.estimate(&image.flip_horizontal());
+                    marks.flip_horizontal_in_place(image.resolution());
                     marks
                 }
             };
@@ -286,7 +283,7 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
 
             landmarks.fulfill((marks.clone(), image));
 
-            fps.tick_with(landmarker.timers());
+            fps.tick_with(estimator.timers());
         },
     )
 }
