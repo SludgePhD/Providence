@@ -5,7 +5,7 @@ edition = "2021"
 description = "👁"
 
 [dependencies]
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "dc0c449301e2ea3eb21c9df20cf901e3cc2f4176" }
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "e1bf431fc3926e551f43b956d9c7594b50750b37" }
 uwuhi-async = "0.3.0"
 pawawwewism = "0.1.0"
 log = "0.4.17"
