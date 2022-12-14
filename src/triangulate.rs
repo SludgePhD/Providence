@@ -77,6 +77,10 @@ impl Triangulator {
             max[0] = cmp::max(TotalF32(max[0]), TotalF32(pt[0])).0;
             max[1] = cmp::max(TotalF32(max[1]), TotalF32(pt[1])).0;
         }
+        min[0] = min[0].floor();
+        min[1] = min[1].floor();
+        max[0] = max[0].ceil();
+        max[1] = max[1].ceil();
 
         let img = img
             .view(Rect::from_corners(
