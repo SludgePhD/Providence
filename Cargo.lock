@@ -3672,7 +3672,7 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 [[package]]
 name = "zaru"
 version = "0.1.0"
-source = "git+https://github.com/SludgePhD/Zaru.git?rev=8781988e581bbcf8b8c9f31faffd9c14482f5239#8781988e581bbcf8b8c9f31faffd9c14482f5239"
+source = "git+https://github.com/SludgePhD/Zaru.git?rev=6d9e5cff9c5debcc875a0b9f685af66e5c7fcbf5#6d9e5cff9c5debcc875a0b9f685af66e5c7fcbf5"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -3721,8 +3721,7 @@ dependencies = [
 [[package]]
 name = "zune-jpeg"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ae8cde2c8ecd69c969064c02650c1a7572d3579e2457e92c1d8740d2b2953c"
+source = "git+https://github.com/SludgePhD/zune-jpeg.git?rev=e76c28cb3b39e9a02ae4732a1f4a3fcf4ea99aed#e76c28cb3b39e9a02ae4732a1f4a3fcf4ea99aed"
 dependencies = [
  "log",
  "scoped_threadpool",
