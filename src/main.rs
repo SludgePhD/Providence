@@ -9,7 +9,8 @@ use providence::triangulate::Triangulator;
 use zaru::face::detection::Detector;
 use zaru::face::eye::{EyeLandmarks, EyeNetwork};
 use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, MediaPipeFaceMesh};
-use zaru::filter::ema::Ema;
+use zaru::filter::one_euro::OneEuroFilter;
+use zaru::filter::{TimeBasedFilter, TimedFilterAdapter};
 use zaru::image::{Image, RotatedRect};
 use zaru::landmark::{Estimator, LandmarkFilter, LandmarkTracker, Network};
 use zaru::num::TotalF32;
@@ -174,10 +175,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
 
     let mut detector = Detector::default();
     let mut estimator = Estimator::new(MediaPipeFaceMesh);
-    estimator.set_filter(LandmarkFilter::new(
-        Ema::new(0.5),
-        LandmarkResult::NUM_LANDMARKS,
-    ));
+    estimator.set_filter(LandmarkFilter::new(filter(), LandmarkResult::NUM_LANDMARKS));
     let mut tracker = LandmarkTracker::new(estimator.input_resolution().aspect_ratio().unwrap());
     let input_ratio = detector.input_resolution().aspect_ratio().unwrap();
 
@@ -257,9 +255,9 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
         Eye::Left => "left iris",
         Eye::Right => "right iris",
     };
-    let mut estimator = Estimator::new(EyeNetwork);
     let mut fps = FpsCounter::new(name);
-    let mut filter = LandmarkFilter::new(Ema::new(0.5), 76);
+    let mut estimator = Estimator::new(EyeNetwork);
+    estimator.set_filter(LandmarkFilter::new(filter(), EyeLandmarks::NUM_LANDMARKS));
 
     Worker::builder().name(name).spawn(
         move |EyeParams {
@@ -279,11 +277,14 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
                 }
             };
 
-            filter.filter(marks.landmarks_mut());
-
             landmarks.fulfill((marks.clone(), image));
 
             fps.tick_with(estimator.timers());
         },
     )
+}
+
+type Filt = OneEuroFilter;
+fn filter() -> TimedFilterAdapter<Filt> {
+    Filt::new(0.002, 0.05).real_time()
 }

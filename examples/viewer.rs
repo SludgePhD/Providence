@@ -4,7 +4,7 @@ use macroquad::{models::Vertex, prelude::*, texture::Texture2D};
 use nalgebra::{Quaternion, Unit, UnitQuaternion};
 use providence::{data::Eye, net::Subscriber};
 
-const SCALE: f32 = 80.0;
+const SCALE: f32 = 120.0;
 
 #[macroquad::main("Providence Viewer")]
 async fn main() -> io::Result<()> {

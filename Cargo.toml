@@ -5,7 +5,7 @@ edition = "2021"
 description = "👁"
 
 [dependencies]
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "e1bf431fc3926e551f43b956d9c7594b50750b37" }
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "8781988e581bbcf8b8c9f31faffd9c14482f5239" }
 uwuhi-async = "0.3.0"
 pawawwewism = "0.1.0"
 log = "0.4.17"
@@ -22,3 +22,6 @@ macroquad = "0.3.24"
 
 [profile.dev]
 opt-level = 2
+
+#[patch.'https://github.com/SludgePhD/Zaru.git']
+#zaru = { path = "../Zaru" }
