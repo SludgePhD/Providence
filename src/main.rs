@@ -286,5 +286,5 @@ fn eye_worker(eye: Eye) -> Result<Worker<EyeParams>, io::Error> {
 
 type Filt = OneEuroFilter;
 fn filter() -> TimedFilterAdapter<Filt> {
-    Filt::new(0.002, 0.05).real_time()
+    Filt::new(0.0001, 0.3).real_time()
 }
