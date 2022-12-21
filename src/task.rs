@@ -59,6 +59,9 @@ impl<T> Task<T> {
 
     /// Returns a [`bool`] indicating whether the asynchronous computation has finished
     /// (successfully or unsuccessfully with a panic).
+    ///
+    /// If this returns `true`, calling [`Task::block`] will return immediately (or propagate the
+    /// [`Task`]'s panic) instead of blocking.
     pub fn is_finished(&self) -> bool {
         self.finished.load(Ordering::Relaxed)
     }

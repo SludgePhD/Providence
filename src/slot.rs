@@ -76,7 +76,7 @@ struct SlotData<T> {
 }
 
 impl<T> SlotWriter<T> {
-    /// Updates the [`Slot`]'s value.
+    /// Updates the slot's value.
     ///
     /// This notifies all [`SlotReader`]s of this slot that are currently waiting on a new value.
     ///
