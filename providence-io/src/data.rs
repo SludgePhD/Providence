@@ -3,7 +3,8 @@ use std::{
     io::{self, BufRead, Write},
 };
 
-use futures::prelude::*;
+use async_std::io::{Read as AsyncRead, Write as AsyncWrite};
+use async_std::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

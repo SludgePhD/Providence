@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use providence::{data::TrackingMessage, net::Publisher};
+use providence_io::{data::TrackingMessage, net::Publisher};
 
 fn main() -> io::Result<()> {
     let path = match env::args_os().skip(1).next() {

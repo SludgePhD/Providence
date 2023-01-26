@@ -1,11 +1,13 @@
+mod triangulate;
+
 use std::collections::VecDeque;
 use std::{cmp, io};
 
 use nalgebra::UnitQuaternion;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
-use providence::data::TrackingMessage;
-use providence::net::Publisher;
-use providence::triangulate::Triangulator;
+use providence_io::data::TrackingMessage;
+use providence_io::net::Publisher;
+use triangulate::Triangulator;
 use zaru::face::detection::Detector;
 use zaru::face::eye::{EyeLandmarks, EyeNetwork};
 use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, MediaPipeFaceMesh};

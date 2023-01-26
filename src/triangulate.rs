@@ -1,6 +1,6 @@
 use std::cmp;
 
-use crate::data::{self, Eye, Mesh, Vertex};
+use providence_io::data::{self, Eye, Mesh, Vertex};
 use zaru::{
     face::eye::EyeLandmarks,
     image::{Image, Rect},

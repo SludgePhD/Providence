@@ -12,6 +12,8 @@ use std::{
 use async_std::task::{self, JoinHandle};
 use futures::FutureExt;
 
+use crate::drop;
+
 /// An owned, asynchronous task running in the background.
 ///
 /// This type enforces structured concurrency: the asynchronous computation runs only as long as its
@@ -35,7 +37,7 @@ impl<T> Task<T> {
         let finished2 = finished.clone();
         Self {
             handle: Some(task::spawn(async move {
-                let _setflag = zaru::drop::defer(|| finished2.store(true, Ordering::Relaxed));
+                let _setflag = drop::defer(|| finished2.store(true, Ordering::Relaxed));
 
                 // Unwind safety: this is the code that makes it safe.
                 AssertUnwindSafe(future).catch_unwind().await

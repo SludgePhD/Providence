@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-use providence::net::Subscriber;
+use providence_io::net::Subscriber;
 
 fn main() -> io::Result<()> {
     let path = match env::args_os().skip(1).next() {

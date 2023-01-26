@@ -2,7 +2,7 @@ use std::io;
 
 use macroquad::{models::Vertex, prelude::*, texture::Texture2D};
 use nalgebra::{Quaternion, Unit, UnitQuaternion};
-use providence::{data::Eye, net::Subscriber};
+use providence_io::{data::Eye, net::Subscriber};
 
 const SCALE: f32 = 120.0;
 
