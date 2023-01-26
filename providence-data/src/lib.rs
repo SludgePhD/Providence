@@ -3,7 +3,7 @@ use std::{
     io::{self, BufRead, Write},
 };
 
-use async_std::io::prelude::*;
+use futures::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,7 +36,7 @@ impl TrackingMessage {
         Ok(())
     }
 
-    pub async fn async_read<R: async_std::io::Read + Unpin>(mut read: R) -> io::Result<Self> {
+    pub async fn async_read<R: AsyncRead + Unpin>(mut read: R) -> io::Result<Self> {
         let mut size = [0; 4];
         read.read_exact(&mut size).await?;
         let size = u32::from_le_bytes(size);
@@ -46,10 +46,7 @@ impl TrackingMessage {
         Ok(val)
     }
 
-    pub async fn async_write<W: async_std::io::Write + Unpin>(
-        &self,
-        mut writer: W,
-    ) -> io::Result<()> {
+    pub async fn async_write<W: AsyncWrite + Unpin>(&self, mut writer: W) -> io::Result<()> {
         let size = bincode::serialized_size(self).map_err(convert_error)?;
         writer
             .write_all(&u32::try_from(size).unwrap().to_le_bytes())

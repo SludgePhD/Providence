@@ -1,3 +1,6 @@
+[workspace]
+members = ["providence-data"]
+
 [package]
 name = "providence"
 version = "0.1.0"
@@ -5,6 +8,7 @@ edition = "2021"
 description = "👁"
 
 [dependencies]
+providence-data = { path = "providence-data" }
 zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "6d9e5cff9c5debcc875a0b9f685af66e5c7fcbf5" }
 uwuhi-async = "0.3.0"
 pawawwewism = "0.1.0"
