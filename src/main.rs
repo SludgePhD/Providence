@@ -8,21 +8,22 @@ use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence_io::data::TrackingMessage;
 use providence_io::net::Publisher;
 use triangulate::Triangulator;
-use zaru::face::detection::Detector;
+use zaru::detection::Detector;
+use zaru::face::detection::ShortRangeNetwork;
 use zaru::face::eye::{EyeLandmarks, EyeNetwork};
 use zaru::face::landmark::mediapipe_facemesh::{self, LandmarkResult, MediaPipeFaceMesh};
 use zaru::filter::one_euro::OneEuroFilter;
 use zaru::filter::{TimeBasedFilter, TimedFilterAdapter};
-use zaru::image::{Image, RotatedRect};
+use zaru::image::AspectRatio;
+use zaru::image::Image;
 use zaru::landmark::{Estimator, LandmarkFilter, LandmarkTracker, Network};
 use zaru::num::TotalF32;
 use zaru::procrustes::ProcrustesAnalyzer;
-use zaru::resolution::AspectRatio;
+use zaru::rect::RotatedRect;
 use zaru::timer::{FpsCounter, Timer};
-use zaru::webcam::{ParamPreference, Webcam, WebcamOptions};
-use zaru::Error;
+use zaru::video::webcam::{ParamPreference, Webcam, WebcamOptions};
 
-fn main() -> Result<(), Error> {
+fn main() -> anyhow::Result<()> {
     zaru::init_logger!();
 
     let eye_input_aspect = EyeNetwork.cnn().input_resolution().aspect_ratio().unwrap();
@@ -95,8 +96,8 @@ struct AssemblerParams {
 
 fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
     let mut fps = FpsCounter::new("assembler");
-    let mut t_procrustes = Timer::new("procrustes");
-    let mut t_triangulate = Timer::new("triangulate");
+    let t_procrustes = Timer::new("procrustes");
+    let t_triangulate = Timer::new("triangulate");
 
     let mut procrustes_analyzer =
         ProcrustesAnalyzer::new(mediapipe_facemesh::reference_positions());
@@ -140,7 +141,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             left.flip_horizontal_in_place(left_img.resolution());
             right.flip_horizontal_in_place(right_img.resolution());
             // Face landmarks have been adjusted to be in range 0..1 earlier.
-            let [x, y, _] = face_landmark.landmarks().average();
+            let [x, y, _] = face_landmark.landmarks().average_position();
             let head_position = [1.0 - x, y];
 
             let guard = t_triangulate.start();
@@ -173,12 +174,12 @@ struct FaceTrackParams {
 /// - Copy the eye's regions from the image and send them to the eye tracking workers
 fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackParams>, io::Error> {
     let mut fps = FpsCounter::new("tracker");
-    let mut t_total = Timer::new("total");
+    let t_total = Timer::new("total");
 
-    let mut detector = Detector::default();
+    let mut detector = Detector::new(ShortRangeNetwork);
     let mut estimator = Estimator::new(MediaPipeFaceMesh);
     estimator.set_filter(LandmarkFilter::new(filter(), LandmarkResult::NUM_LANDMARKS));
-    let mut tracker = LandmarkTracker::new(estimator.input_resolution().aspect_ratio().unwrap());
+    let mut tracker = LandmarkTracker::new(estimator);
     let input_ratio = detector.input_resolution().aspect_ratio().unwrap();
 
     Worker::builder().name("face tracker").spawn(
@@ -202,24 +203,22 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
                     .iter()
                     .max_by_key(|det| TotalF32(det.confidence()))
                 {
-                    let rect = target
-                        .bounding_rect_loose()
-                        .move_by(view_rect.x(), view_rect.y());
+                    let rect = target.bounding_rect().move_by(view_rect.x(), view_rect.y());
                     log::trace!("start tracking face at {:?}", rect);
                     tracker.set_roi(rect);
                 }
             }
 
-            if let Some(res) = tracker.track(&mut estimator, &image) {
+            if let Some(res) = tracker.track(&image) {
                 let max = cmp::max(image.width(), image.height()) as f32;
-                let mut lms = res.estimation().clone();
+                let mut lms = res.estimate().clone();
                 lms.landmarks_mut()
                     .map_positions(|[x, y, z]| [x / max, y / max, z / max]);
 
                 landmarks.fulfill(lms);
 
-                let left = res.estimation().left_eye();
-                let right = res.estimation().right_eye();
+                let left = res.estimate().left_eye();
+                let right = res.estimate().right_eye();
 
                 const MARGIN: f32 = 0.9;
                 let left = left.grow_rel(MARGIN).grow_to_fit_aspect(eye_input_aspect);
@@ -234,7 +233,7 @@ fn face_track_worker(eye_input_aspect: AspectRatio) -> Result<Worker<FaceTrackPa
                 [&t_total]
                     .into_iter()
                     .chain(detector.timers())
-                    .chain(estimator.timers()),
+                    .chain(tracker.timers()),
             );
         },
     )

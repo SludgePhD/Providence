@@ -9,8 +9,10 @@ const SCALE: f32 = 120.0;
 #[macroquad::main("Providence Viewer")]
 async fn main() -> io::Result<()> {
     let mut sub = Subscriber::autoconnect_blocking()?;
+    println!("connected to tracker");
 
     let mut msg = sub.block()?;
+    println!("received first tracking message, starting output");
 
     loop {
         if let Some(next) = sub.next()? {

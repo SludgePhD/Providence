@@ -1,11 +1,7 @@
 use std::cmp;
 
 use providence_io::data::{self, Eye, Mesh, Vertex};
-use zaru::{
-    face::eye::EyeLandmarks,
-    image::{Image, Rect},
-    num::TotalF32,
-};
+use zaru::{face::eye::EyeLandmarks, image::Image, num::TotalF32, rect::Rect};
 
 // winding order: counter-clockwise
 static TRIS: &[[u8; 3]] = &[
@@ -61,7 +57,7 @@ impl Triangulator {
         eye: &EyeLandmarks,
         img: &Image,
         flip: bool,
-    ) -> zaru::Result<Eye> {
+    ) -> anyhow::Result<Eye> {
         let mut points = [[0.0, 0.0]; 16];
         for (out, [x, y, _]) in points.iter_mut().zip(eye.eye_contour()) {
             out[0] = x;
@@ -82,12 +78,7 @@ impl Triangulator {
         max[0] = max[0].ceil();
         max[1] = max[1].ceil();
 
-        let img = img
-            .view(Rect::from_corners(
-                (min[0] as _, min[1] as _),
-                (max[0] as _, max[1] as _),
-            ))
-            .to_image();
+        let img = img.view(Rect::bounding([min, max]).unwrap()).to_image();
 
         // We scale all points so that the largest axis spans from 0.0 to 1.0
         let range = [max[0] - min[0], max[1] - min[1]]
