@@ -1,7 +1,4 @@
-use std::{
-    hash::Hash,
-    io::{self, BufRead, Write},
-};
+use std::io::{self, BufRead, Write};
 
 use async_std::io::{Read as AsyncRead, Write as AsyncWrite};
 use async_std::prelude::*;
@@ -71,6 +68,7 @@ pub struct Eye {
     pub mesh: Mesh,
 }
 
+/// A 2D triangle mesh in counter-clockwise winding order.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
@@ -82,24 +80,6 @@ pub struct Vertex {
     pub position: [f32; 2],
     pub uv: [f32; 2],
 }
-
-impl Hash for Vertex {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.position[0].to_bits().hash(state);
-        self.position[1].to_bits().hash(state);
-    }
-}
-
-impl PartialEq for Vertex {
-    fn eq(&self, other: &Self) -> bool {
-        self.position[0]
-            .total_cmp(&other.position[0])
-            .then(self.position[1].total_cmp(&other.position[1]))
-            .is_eq()
-    }
-}
-
-impl Eq for Vertex {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Image {

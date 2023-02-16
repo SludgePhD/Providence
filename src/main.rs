@@ -145,8 +145,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let head_position = [1.0 - x, y];
 
             let guard = t_triangulate.start();
-            let Ok(left_eye) = tri.triangulate_eye(&left, &left_img, true) else { return };
-            let Ok(right_eye) = tri.triangulate_eye(&right, &right_img, false) else { return };
+            let Ok(left_eye) = tri.triangulate_eye(&left, &left_img, false) else { return };
+            let Ok(right_eye) = tri.triangulate_eye(&right, &right_img, true) else { return };
             drop(guard);
             message.fulfill(TrackingMessage {
                 head_position,
