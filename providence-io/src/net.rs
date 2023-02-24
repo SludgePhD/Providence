@@ -119,6 +119,7 @@ impl Publisher {
     }
 
     /// Returns the local port the server was bound to.
+    #[inline]
     pub fn port(&self) -> u16 {
         self.port
     }
@@ -227,16 +228,26 @@ impl Subscriber {
         })
     }
 
+    /// Retrieves the most recent message received.
+    ///
+    /// Returns [`None`] if no [`TrackingMessage`] has ever been received by this [`Subscriber`].
     pub fn get(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
         self.ping()?;
         Ok(self.reader.get())
     }
 
+    /// Retrieves the next [`TrackingMessage`] received.
+    ///
+    /// If no message was received since the last time one was retrieved from this [`Subscriber`],
+    /// this function returns [`None`]. If you want to access the last message regardless, call
+    /// [`Subscriber::get`] instead.
     pub fn next(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
         self.ping()?;
         Ok(self.reader.next())
     }
 
+    /// Blocks the calling thread until a new [`TrackingMessage`] is available, and returns the
+    /// message.
     pub fn block(&mut self) -> io::Result<Arc<TrackingMessage>> {
         // If the writer disconnects, the task must have returned an error or panicked.
         self.reader
