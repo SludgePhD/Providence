@@ -1,7 +1,7 @@
 use std::cmp;
 
-use providence_io::data::{self, Eye, Mesh, Vertex};
-use zaru::{face::eye::EyeLandmarks, image::Image, num::TotalF32, rect::Rect};
+use providence_io::data::{self, Mesh, Vertex};
+use zaru::{image::Image, landmark::Landmark, num::TotalF32, rect::Rect};
 
 // winding order: counter-clockwise
 static TRIS: &[[u8; 3]] = &[
@@ -23,7 +23,6 @@ static TRIS: &[[u8; 3]] = &[
 
 pub struct Triangulator {
     mesh: Mesh,
-    flipped_mesh: Mesh,
 }
 
 impl Triangulator {
@@ -32,13 +31,6 @@ impl Triangulator {
             mesh: Mesh {
                 // The indices are always fixed, only the vertices change.
                 indices: TRIS.iter().flat_map(|&tri| tri.map(u16::from)).collect(),
-                vertices: Vec::new(),
-            },
-            flipped_mesh: Mesh {
-                indices: TRIS
-                    .iter()
-                    .flat_map(|&[i, j, k]| [i, k, j].map(u16::from))
-                    .collect(),
                 vertices: Vec::new(),
             },
         }
@@ -50,18 +42,15 @@ impl Triangulator {
     ///
     /// - `eye`: the landmarks of the eye, positioned on `img`.
     /// - `img`: the image the landmarks were computed on.
-    /// - `flip`: whether to flip all emitted triangles from being wound counter-clockwise to being
-    ///   wound clockwise.
     pub fn triangulate_eye(
         &mut self,
-        eye: &EyeLandmarks,
+        eye: &[Landmark; 16],
         img: &Image,
-        flip: bool,
-    ) -> anyhow::Result<Eye> {
+    ) -> anyhow::Result<TriangulatedEye> {
         let mut points = [[0.0, 0.0]; 16];
-        for (out, [x, y, _]) in points.iter_mut().zip(eye.eye_contour()) {
-            out[0] = x;
-            out[1] = y;
+        for (out, lm) in points.iter_mut().zip(eye) {
+            out[0] = lm.x();
+            out[1] = lm.y();
         }
 
         // Compute AABB to crop image to
@@ -80,7 +69,7 @@ impl Triangulator {
 
         let img = img.view(Rect::bounding([min, max]).unwrap()).to_image();
 
-        // We scale all points so that the largest axis spans from 0.0 to 1.0
+        // Vertex positions are mapped so that all vertices fit into a rect from -0.5 to 0.5
         let range = [max[0] - min[0], max[1] - min[1]]
             .into_iter()
             .max_by_key(|f| TotalF32(*f))
@@ -91,24 +80,49 @@ impl Triangulator {
         }
         let max = [max[0] - min[0], max[1] - min[1]];
 
-        let mesh = if flip {
-            &mut self.flipped_mesh
-        } else {
-            &mut self.mesh
-        };
-        mesh.vertices.clear();
-        mesh.vertices.extend(points.iter().map(|&[x, y]| Vertex {
-            position: [(x - max[0] * 0.5) / range, (y - max[1] * 0.5) / range],
-            uv: [x / max[0], y / max[1]],
-        }));
+        self.mesh.vertices.clear();
+        self.mesh
+            .vertices
+            .extend(points.iter().map(|&[x, y]| Vertex {
+                position: [(x - max[0] * 0.5) / range, (y - max[1] * 0.5) / range],
+                uv: [x / max[0], y / max[1]],
+            }));
 
-        Ok(Eye {
-            texture: data::Image {
-                width: img.width(),
-                height: img.height(),
-                data: img.data().to_vec(),
-            },
-            mesh: mesh.clone(),
+        Ok(TriangulatedEye {
+            texture: img,
+            mesh: self.mesh.clone(),
         })
+    }
+}
+
+pub struct TriangulatedEye {
+    mesh: Mesh,
+    texture: Image,
+}
+
+impl TriangulatedEye {
+    /// Flips vertex positions and UV coordinates so that the resulting mesh will appear flipped horizontally.
+    pub fn flip_horizontal(mut self) -> Self {
+        self.mesh.vertices = self
+            .mesh
+            .vertices
+            .into_iter()
+            .map(|vert| Vertex {
+                position: [-vert.position[0], vert.position[1]],
+                uv: vert.uv,
+            })
+            .collect();
+        self
+    }
+
+    pub fn into_message(self) -> data::Eye {
+        data::Eye {
+            texture: data::Image {
+                width: self.texture.width(),
+                height: self.texture.height(),
+                data: self.texture.data().to_vec(),
+            },
+            mesh: self.mesh,
+        }
     }
 }

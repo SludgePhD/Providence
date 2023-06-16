@@ -14,6 +14,8 @@
 //! non-async thread can check or block for a new value using the [`SlotReader`]'s methods.
 //! Communication in the other direction is enabled by the async [`SlotReader::wait`] method.
 
+// FIXME: this is a primitive for functional reactive programming! it should probably live in pawawwewism.
+
 use std::sync::{Arc, Condvar, Mutex};
 
 use async_std::task;
@@ -151,6 +153,9 @@ impl<T: Clone> SlotReader<T> {
     where
         T: Send + 'static,
     {
+        // FIXME: don't do spawn_blocking, instead use a custom future type, store the `Waker` in
+        // the slot, and notify them all when the value changes
+
         // Clone to work around lack of `block_in_place` in async-std. Copy the `read_gen` back to
         // `self` to make the clone unobservable.
         let mut this = self.clone();
