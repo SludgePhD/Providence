@@ -10,7 +10,7 @@ use std::{
 };
 
 use async_std::task::{self, JoinHandle};
-use futures::FutureExt;
+use futures_lite::future::FutureExt;
 
 use crate::drop;
 
@@ -100,6 +100,7 @@ impl<T> Drop for Task<T> {
 #[cfg(test)]
 mod tests {
     use std::{
+        future::ready,
         panic::{catch_unwind, resume_unwind},
         thread,
     };
@@ -112,13 +113,13 @@ mod tests {
 
     #[test]
     fn block() {
-        let task = Task::spawn(futures::future::ready(123));
+        let task = Task::spawn(ready(123));
         assert_eq!(task.block(), 123);
     }
 
     #[test]
     fn sets_finished_flag() {
-        let task = Task::spawn(futures::future::ready(456));
+        let task = Task::spawn(ready(456));
         while !task.is_finished() {
             thread::yield_now();
         }
