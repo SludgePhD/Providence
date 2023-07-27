@@ -47,44 +47,55 @@ impl Triangulator {
         eye: &[Landmark; 16],
         img: &Image,
     ) -> anyhow::Result<TriangulatedEye> {
-        let mut points = [[0.0, 0.0]; 16];
+        let mut points = [[0.0; 3]; 16];
         for (out, lm) in points.iter_mut().zip(eye) {
             out[0] = lm.x();
             out[1] = lm.y();
+            out[2] = lm.z();
         }
 
         // Compute AABB to crop image to
-        let mut min = [f32::MAX; 2];
-        let mut max = [f32::MIN; 2];
+        let mut min = [f32::MAX; 3];
+        let mut max = [f32::MIN; 3];
         for pt in &points {
             min[0] = cmp::min(TotalF32(min[0]), TotalF32(pt[0])).0;
             min[1] = cmp::min(TotalF32(min[1]), TotalF32(pt[1])).0;
+            min[2] = cmp::min(TotalF32(min[2]), TotalF32(pt[2])).0;
             max[0] = cmp::max(TotalF32(max[0]), TotalF32(pt[0])).0;
             max[1] = cmp::max(TotalF32(max[1]), TotalF32(pt[1])).0;
+            max[2] = cmp::max(TotalF32(max[2]), TotalF32(pt[2])).0;
         }
-        min[0] = min[0].floor();
-        min[1] = min[1].floor();
-        max[0] = max[0].ceil();
-        max[1] = max[1].ceil();
+        min = min.map(f32::floor);
+        max = max.map(f32::ceil);
 
-        let img = img.view(Rect::bounding([min, max]).unwrap()).to_image();
+        let img = img
+            .view(Rect::bounding([[min[0], min[1]], [max[0], max[1]]]).unwrap())
+            .to_image();
 
         // Vertex positions are mapped so that all vertices fit into a rect from -0.5 to 0.5
-        let range = [max[0] - min[0], max[1] - min[1]]
+        let range = [max[0] - min[0], max[1] - min[1], max[2] - min[2]]
             .into_iter()
             .max_by_key(|f| TotalF32(*f))
             .unwrap();
         for pt in &mut points {
             pt[0] = pt[0] - min[0];
             pt[1] = pt[1] - min[1];
+            pt[2] = pt[2] - min[2];
         }
-        let max = [max[0] - min[0], max[1] - min[1]];
+        let max = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
+
+        // FIXME: no Z coordinate in the tracking data. UVs are not yet adjusted to make
+        // the resulting mesh look correct.
 
         self.mesh.vertices.clear();
         self.mesh
             .vertices
-            .extend(points.iter().map(|&[x, y]| Vertex {
-                position: [(x - max[0] * 0.5) / range, (y - max[1] * 0.5) / range],
+            .extend(points.iter().map(|&[x, y, _z]| Vertex {
+                position: [
+                    (x - max[0] * 0.5) / range,
+                    (y - max[1] * 0.5) / range,
+                    //(z - max[2] * 0.5) / range,
+                ],
                 uv: [x / max[0], y / max[1]],
             }));
 
