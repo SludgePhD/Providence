@@ -7,7 +7,7 @@ use nalgebra::UnitQuaternion;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence_io::data::TrackingMessage;
 use providence_io::net::Publisher;
-use triangulate::Triangulator;
+use triangulate::{Eye, Triangulator};
 use zaru::detection::Detector;
 use zaru::face::detection::ShortRangeNetwork;
 use zaru::face::landmark::mediapipe::{self, FaceMeshV2, LandmarkResultV2};
@@ -21,9 +21,8 @@ use zaru::rect::RotatedRect;
 use zaru::timer::{FpsCounter, Timer};
 use zaru::video::webcam::{ParamPreference, Webcam, WebcamOptions};
 
+#[zaru::main]
 fn main() -> anyhow::Result<()> {
-    zaru::init_logger!();
-
     let mut face_tracker = face_track_worker()?;
     let mut assembler = assembler()?;
 
@@ -100,12 +99,12 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let guard = t_triangulate.start();
-            let Ok(left_eye) = tri.triangulate_eye(&face_landmark.left_eye_contour(), &image) else { return };
-            let Ok(right_eye) = tri.triangulate_eye(&face_landmark.right_eye_contour(), &image) else { return };
+            let Ok(left_eye) = tri.triangulate_eye(&face_landmark, &image, Eye::Left) else { return };
+            let Ok(right_eye) = tri.triangulate_eye(&face_landmark, &image, Eye::Right) else { return };
             drop(guard);
 
-            let left_eye = left_eye.flip_horizontal();
-            let right_eye = right_eye.flip_horizontal();
+            // Mirror the whole image, so that the eyes match what the user does.
+            let (right_eye, left_eye) = (left_eye.flip_horizontal(), right_eye.flip_horizontal());
 
             // Map all landmarks into range 0..=1 for computing the head position
             let max = cmp::max(image.width(), image.height()) as f32;

@@ -66,6 +66,9 @@ fn convert_error(e: bincode::Error) -> io::Error {
 pub struct Eye {
     pub texture: Image,
     pub mesh: Mesh,
+    // FIXME: ideally these two would only be present if the iris is actually visible
+    pub iris_center: [f32; 2],
+    pub iris_radius: f32,
 }
 
 /// A 2D triangle mesh in counter-clockwise winding order.
