@@ -31,11 +31,24 @@ fn main() -> anyhow::Result<()> {
             .fps(30)
             .prefer(ParamPreference::Resolution),
     )?;
+    webcam.read()?;
 
     let mut publisher = Publisher::spawn()?;
     let mut message_queue = VecDeque::new();
     let mut fps = FpsCounter::new("webcam");
     loop {
+        // To avoid wasting CPU, we only perform processing when there is a client connected.
+        // Ideally we'd also clear the face tracking state, but that's kinda difficult to do.
+        if !publisher.has_connection() {
+            // Make sure to drop old messages so that we don't sent anything outdated to new clients.
+            message_queue.clear();
+            publisher.clear();
+            publisher.block_until_connected();
+
+            // Drain all pending webcam frames to ensure we resume with more recent frames.
+            webcam.flush()?;
+        }
+
         // NB: the non-flipped webcam image is "the wrong way around" - but flipping the whole image
         // is *very* expensive for some reason, so we only flip the final result.
         let image = webcam.read()?;

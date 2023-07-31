@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use pawawwewism::reactive::{Disconnected, Reader, Value};
 use uwuhi_async::{
     packet::name::Label,
     resolver::{AsyncResolver, SyncResolver},
@@ -16,17 +17,14 @@ use uwuhi_async::{
     },
 };
 
-use crate::{
-    data::TrackingMessage,
-    slot::{slot, SlotReader, SlotWriter},
-    task::Task,
-};
+use crate::{data::TrackingMessage, drop::defer, task::Task};
 
 const SERVICE: &str = "_providence";
 
 pub struct Publisher {
     port: u16,
-    message_writer: SlotWriter<Arc<TrackingMessage>>,
+    message: Value<Option<Arc<TrackingMessage>>>,
+    connections_reader: Reader<usize>,
     _advertiser: Task<io::Result<()>>,
     _listener: Task<io::Result<()>>,
 }
@@ -72,7 +70,10 @@ impl Publisher {
             InstanceDetails::new(format!("{name}.local").parse().unwrap(), port),
         );
 
-        let (message_writer, message_reader) = slot::<Arc<TrackingMessage>>();
+        let message: Value<Option<Arc<TrackingMessage>>> = Value::new(None);
+        let message_reader = message.reader();
+        let connections = Value::new(0);
+        let connections_reader = connections.reader();
         let advertiser = Task::spawn(async move { advertiser.listen().await });
         let listener = Task::spawn(async move {
             // (contains `Task`s so that they make progress without us polling them)
@@ -87,15 +88,21 @@ impl Publisher {
                 streams.retain(|task| !task.is_finished());
 
                 let mut message_reader = message_reader.clone();
+                let mut connections = connections.clone();
                 streams.push(Task::spawn(async move {
-                    // If there's an old message available, send it to the client immediately.
-                    if let Some(msg) = message_reader.get() {
+                    connections.modify(|mut c| *c += 1);
+                    let _fin = defer(|| connections.modify(|mut c| *c -= 1));
+
+                    // If there's an existing message available, send it to the client immediately.
+                    if let Ok(Some(msg)) = message_reader.get() {
+                        log::debug!("sending existing message to client");
                         msg.async_write(&mut stream).await?;
                     }
 
                     loop {
                         let msg = match message_reader.wait().await {
-                            Ok(msg) => msg,
+                            Ok(Some(msg)) => msg,
+                            Ok(None) => continue,
                             Err(_) => break,
                         };
                         msg.async_write(&mut stream).await?;
@@ -107,7 +114,8 @@ impl Publisher {
 
         Ok(Self {
             port,
-            message_writer,
+            message,
+            connections_reader,
             _advertiser: advertiser,
             _listener: listener,
         })
@@ -115,7 +123,31 @@ impl Publisher {
 
     /// Updates the [`TrackingMessage`] that is sent to connected clients.
     pub fn publish(&mut self, message: TrackingMessage) {
-        self.message_writer.update(Arc::new(message));
+        self.message.set(Some(Arc::new(message)));
+    }
+
+    /// Clears the stored tracking message.
+    ///
+    /// This prevents any newly connecting client from being served a stale message.
+    pub fn clear(&mut self) {
+        self.message.set(None);
+    }
+
+    /// Returns a [`bool`] indicating whether there is at least 1 client connected to this
+    /// [`Publisher`] that would see the published tracking messages.
+    pub fn has_connection(&mut self) -> bool {
+        self.connections_reader.get().unwrap() != 0
+    }
+
+    /// Blocks the calling thread until there is at least 1 client connected to this [`Publisher`].
+    pub fn block_until_connected(&mut self) {
+        loop {
+            if self.connections_reader.get().unwrap() != 0 {
+                break;
+            }
+            log::info!("waiting for connection");
+            self.connections_reader.block_until_changed();
+        }
     }
 
     /// Returns the local port the server was bound to.
@@ -127,7 +159,7 @@ impl Publisher {
 
 pub struct Subscriber {
     task: Option<Task<io::Result<()>>>, // FIXME: ! instead of ()
-    reader: SlotReader<Arc<TrackingMessage>>,
+    reader: Reader<Option<Arc<TrackingMessage>>>,
 }
 
 impl Subscriber {
@@ -211,14 +243,15 @@ impl Subscriber {
     }
 
     pub fn connect(addr: SocketAddrV4) -> io::Result<Self> {
-        let (mut writer, reader) = slot();
+        let mut message = Value::new(None);
+        let reader = message.reader();
 
         let task = Task::spawn(async move {
             let mut stream = async_std::net::TcpStream::connect(addr).await?;
             log::info!("connected to server at {addr}");
             loop {
                 let msg = Arc::new(TrackingMessage::async_read(&mut stream).await?);
-                writer.update(msg);
+                message.set(Some(msg));
             }
         });
 
@@ -232,8 +265,10 @@ impl Subscriber {
     ///
     /// Returns [`None`] if no [`TrackingMessage`] has ever been received by this [`Subscriber`].
     pub fn get(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
-        self.ping()?;
-        Ok(self.reader.get())
+        match self.reader.get() {
+            Ok(opt) => Ok(opt),
+            Err(Disconnected) => Err(self.ping().unwrap_err()),
+        }
     }
 
     /// Retrieves the next [`TrackingMessage`] received.
@@ -242,8 +277,14 @@ impl Subscriber {
     /// this function returns [`None`]. If you want to access the last message regardless, call
     /// [`Subscriber::get`] instead.
     pub fn next(&mut self) -> io::Result<Option<Arc<TrackingMessage>>> {
-        self.ping()?;
-        Ok(self.reader.next())
+        if self.reader.has_changed() {
+            match self.reader.get() {
+                Ok(opt) => Ok(Some(opt.unwrap())),
+                Err(Disconnected) => Err(self.ping().unwrap_err()),
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     /// Blocks the calling thread until a new [`TrackingMessage`] is available, and returns the
@@ -252,6 +293,7 @@ impl Subscriber {
         // If the writer disconnects, the task must have returned an error or panicked.
         self.reader
             .block()
+            .map(Option::unwrap)
             .map_err(|_| self.task.take().unwrap().block().unwrap_err())
     }
 

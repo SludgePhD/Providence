@@ -12,6 +12,7 @@ futures-lite = "1.13.0"
 uwuhi-async = "0.3.0"
 if-addrs = "0.10.1"
 log = "0.4.17"
+pawawwewism = "0.1.0"
 
 # importantly, this library does not pull in `Zaru` and the wgpu stack
 # (that's done by the containing package that also contains the binaries)
