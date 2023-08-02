@@ -9,7 +9,7 @@ description = "👁"
 
 [dependencies]
 providence-io = { path = "providence-io" }
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "ad85d943e2d6b30892546c3c38796efeff6e388c" }
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "44ac0b58eaf0b2e8c808a9afdeb30bd9980a6bad" }
 pawawwewism = "0.1.0"
 anyhow = "1.0.69"
 log = "0.4.17"

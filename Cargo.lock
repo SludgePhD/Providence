@@ -3945,7 +3945,7 @@ checksum = "47430998a7b5d499ccee752b41567bc3afc57e1327dc855b1a2aa44ce29b5fa1"
 [[package]]
 name = "zaru"
 version = "0.1.0"
-source = "git+https://github.com/SludgePhD/Zaru.git?rev=ad85d943e2d6b30892546c3c38796efeff6e388c#ad85d943e2d6b30892546c3c38796efeff6e388c"
+source = "git+https://github.com/SludgePhD/Zaru.git?rev=44ac0b58eaf0b2e8c808a9afdeb30bd9980a6bad#44ac0b58eaf0b2e8c808a9afdeb30bd9980a6bad"
 dependencies = [
  "anyhow",
  "embedded-graphics",
@@ -3979,7 +3979,7 @@ dependencies = [
 [[package]]
 name = "zaru-macros"
 version = "0.1.0"
-source = "git+https://github.com/SludgePhD/Zaru.git?rev=ad85d943e2d6b30892546c3c38796efeff6e388c#ad85d943e2d6b30892546c3c38796efeff6e388c"
+source = "git+https://github.com/SludgePhD/Zaru.git?rev=44ac0b58eaf0b2e8c808a9afdeb30bd9980a6bad#44ac0b58eaf0b2e8c808a9afdeb30bd9980a6bad"
 dependencies = [
  "quote",
  "syn 2.0.27",
