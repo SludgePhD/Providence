@@ -44,6 +44,8 @@ fn main() -> anyhow::Result<()> {
             message_queue.clear();
             publisher.clear();
             publisher.block_until_connected();
+            // FIXME: blocking here prevents us from detecting that the webcam disappeared until a client connects!
+            // it'd be better to do this `async`.
 
             // Drain all pending webcam frames to ensure we resume with more recent frames.
             webcam.flush()?;

@@ -60,7 +60,7 @@ fn render_eye(eye: &Eye, scale: f32, offset: Vec3) {
     let x = eye.iris_center[0] * scale + offset.x;
     let y = eye.iris_center[1] * scale + offset.y;
     let r = eye.iris_radius * scale;
-    draw_circle(x, y, r, Color::new(1.0, 0.5, 0.5, 0.3));
+    draw_circle(x, y, r, Color::new(1.0, 0.5, 0.5, 0.15));
 }
 
 fn render_rotation(rot: UnitQuaternion<f32>) {

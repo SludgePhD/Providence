@@ -1,8 +1,13 @@
 use std::io::{self, BufRead, Write};
+use std::sync::OnceLock;
 
 use async_std::io::{Read as AsyncRead, Write as AsyncWrite};
 use async_std::prelude::*;
 use serde::{Deserialize, Serialize};
+
+use crate::fingerprint::serde_fingerprint;
+
+static FINGERPRINT: OnceLock<u64> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackingMessage {
@@ -20,38 +25,74 @@ pub struct TrackingMessage {
 
 impl TrackingMessage {
     pub fn read<R: BufRead>(mut read: R) -> io::Result<Self> {
+        let mut fingerprint = [0; 8];
+        read.read_exact(&mut fingerprint)?;
+        let fingerprint = u64::from_le_bytes(fingerprint);
+
+        if Self::fingerprint() != fingerprint {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "message fingerprint mismatch",
+            ));
+        }
+
         let mut size = [0; 4];
         read.read_exact(&mut size)?;
         let size = u32::from_le_bytes(size);
+
         let val = bincode::deserialize_from(&mut read.take(size.into())).map_err(convert_error)?;
         Ok(val)
     }
 
     pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+        writer.write_all(&Self::fingerprint().to_le_bytes())?;
+
         let size = bincode::serialized_size(self).map_err(convert_error)?;
         writer.write_all(&u32::try_from(size).unwrap().to_le_bytes())?;
+
         bincode::serialize_into(&mut writer, self).map_err(convert_error)?;
+
         Ok(())
     }
 
     pub async fn async_read<R: AsyncRead + Unpin>(mut read: R) -> io::Result<Self> {
+        let mut fingerprint = [0; 8];
+        read.read_exact(&mut fingerprint).await?;
+        let fingerprint = u64::from_le_bytes(fingerprint);
+
+        if Self::fingerprint() != fingerprint {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "message fingerprint mismatch",
+            ));
+        }
+
         let mut size = [0; 4];
         read.read_exact(&mut size).await?;
         let size = u32::from_le_bytes(size);
+
         let mut buf = vec![0; size as usize];
         read.read_exact(&mut buf).await?;
         let val = bincode::deserialize_from(&*buf).map_err(convert_error)?;
+
         Ok(val)
     }
 
     pub async fn async_write<W: AsyncWrite + Unpin>(&self, mut writer: W) -> io::Result<()> {
+        writer.write_all(&Self::fingerprint().to_le_bytes()).await?;
+
         let size = bincode::serialized_size(self).map_err(convert_error)?;
         writer
             .write_all(&u32::try_from(size).unwrap().to_le_bytes())
             .await?;
+
         let buf = bincode::serialize(self).map_err(convert_error)?;
         writer.write_all(&buf).await?;
         Ok(())
+    }
+
+    fn fingerprint() -> u64 {
+        *FINGERPRINT.get_or_init(|| serde_fingerprint::<Self>())
     }
 }
 
