@@ -308,7 +308,7 @@ impl Subscriber {
 
 #[cfg(test)]
 mod tests {
-    use crate::data::{Eye, Image, Mesh, Vertex};
+    use crate::data::{Eye, FaceData, Image, Mesh, PersistentId, Vertex};
 
     use super::*;
 
@@ -360,10 +360,14 @@ mod tests {
         }
 
         TrackingMessage {
-            head_position: [1.0, 2.0],
-            head_rotation: Default::default(),
-            left_eye: mk_eye(),
-            right_eye: mk_eye(),
+            faces: vec![FaceData {
+                ephemeral_id: 123,
+                persistent_id: PersistentId::Unknown,
+                head_position: [1.0, 2.0],
+                head_rotation: Default::default(),
+                left_eye: mk_eye(),
+                right_eye: mk_eye(),
+            }],
         }
     }
 }

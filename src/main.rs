@@ -5,7 +5,7 @@ use std::{cmp, io};
 
 use nalgebra::UnitQuaternion;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
-use providence_io::data::TrackingMessage;
+use providence_io::data::{FaceData, PersistentId, TrackingMessage};
 use providence_io::net::Publisher;
 use triangulate::{Eye, Triangulator};
 use zaru::detection::Detector;
@@ -68,8 +68,14 @@ fn main() -> anyhow::Result<()> {
 
         if let Some(handle) = message_queue.front() {
             if !handle.will_block() {
-                if let Ok(msg) = message_queue.pop_front().unwrap().block() {
-                    publisher.publish(msg);
+                match message_queue.pop_front().unwrap().block() {
+                    Ok(msg) => {
+                        publisher.publish(msg);
+                    }
+                    Err(_) => {
+                        // If this promise is blocked, no face was detected.
+                        publisher.publish(TrackingMessage { faces: Vec::new() });
+                    }
                 }
             }
         }
@@ -89,22 +95,18 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
     let mut procrustes_analyzer = ProcrustesAnalyzer::new(mediapipe::reference_positions());
     let mut tri = Triangulator::new();
 
-    Worker::builder().name("assembler").spawn(
-        move |AssemblerParams {
-                  landmarks,
-                  message,
-              }| {
+    Worker::builder()
+        .name("assembler")
+        .spawn(move |AssemblerParams { landmarks, message }| {
             let Ok((mut face_landmark, image)) = landmarks.block() else { return };
 
             let procrustes_result = t_procrustes.time(|| {
-                procrustes_analyzer.analyze(face_landmark.mesh_landmarks().map(
-                    |lm| {
-                        // Flip Y to bring us to canonical 3D coordinates (where Y points up).
-                        // Only rotation matters, so we don't have to correct for the added
-                        // translation.
-                        (lm.x(), -lm.y(), lm.z())
-                    },
-                ))
+                procrustes_analyzer.analyze(face_landmark.mesh_landmarks().map(|lm| {
+                    // Flip Y to bring us to canonical 3D coordinates (where Y points up).
+                    // Only rotation matters, so we don't have to correct for the added
+                    // translation.
+                    (lm.x(), -lm.y(), lm.z())
+                }))
             });
 
             let (r, p, y) = procrustes_result.rotation().euler_angles();
@@ -114,8 +116,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let head_rotation = [quat.i, quat.j, quat.k, quat.w];
 
             let guard = t_triangulate.start();
-            let Ok(left_eye) = tri.triangulate_eye(&face_landmark, &image, Eye::Left) else { return };
-            let Ok(right_eye) = tri.triangulate_eye(&face_landmark, &image, Eye::Right) else { return };
+            let left_eye = tri.triangulate_eye(&face_landmark, &image, Eye::Left);
+            let right_eye = tri.triangulate_eye(&face_landmark, &image, Eye::Right);
             drop(guard);
 
             // Mirror the whole image, so that the eyes match what the user does.
@@ -123,21 +125,25 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
             // Map all landmarks into range 0..=1 for computing the head position
             let max = cmp::max(image.width(), image.height()) as f32;
-            face_landmark.landmarks_mut()
+            face_landmark
+                .landmarks_mut()
                 .map_positions(|[x, y, z]| [x / max, y / max, z / max]);
             let [x, y, _] = face_landmark.landmarks().average_position();
             let head_position = [1.0 - x, y];
 
             message.fulfill(TrackingMessage {
-                head_position,
-                head_rotation,
-                left_eye: left_eye.into_message(),
-                right_eye: right_eye.into_message(),
+                faces: vec![FaceData {
+                    ephemeral_id: 0,
+                    persistent_id: PersistentId::Unavailable,
+                    head_position,
+                    head_rotation,
+                    left_eye: left_eye.into_message(),
+                    right_eye: right_eye.into_message(),
+                }],
             });
 
             fps.tick_with([&t_procrustes, &t_triangulate]);
-        },
-    )
+        })
 }
 
 struct FaceTrackParams {

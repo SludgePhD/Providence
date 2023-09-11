@@ -12,6 +12,12 @@ async fn main() -> io::Result<()> {
     println!("connected to tracker");
 
     let mut msg = sub.block()?;
+    if msg.faces.is_empty() {
+        println!("no faces in view; waiting");
+        while msg.faces.is_empty() {
+            msg = sub.block()?;
+        }
+    }
     println!("received first tracking message, starting output");
 
     loop {
@@ -19,16 +25,21 @@ async fn main() -> io::Result<()> {
             msg = next;
         }
 
+        clear_background(BLACK);
+
+        let [face, ..] = &*msg.faces else {
+            next_frame().await;
+            continue;
+        };
         let width = screen_width();
         let height = screen_height();
 
-        let [x, y] = msg.head_position;
+        let [x, y] = face.head_position;
         let [x, y] = [x * width, y * height];
 
-        clear_background(BLACK);
-        render_eye(&msg.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
-        render_eye(&msg.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
-        let [x, y, z, w] = msg.head_rotation;
+        render_eye(&face.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
+        render_eye(&face.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
+        let [x, y, z, w] = face.head_rotation;
         render_rotation(Unit::new_normalize(Quaternion::new(w, x, y, z)));
         next_frame().await;
     }

@@ -55,7 +55,7 @@ impl Triangulator {
         face_landmarks: &LandmarkResultV2,
         img: &Image,
         eye: Eye,
-    ) -> anyhow::Result<TriangulatedEye> {
+    ) -> TriangulatedEye {
         let (eye_landmarks, iris_landmarks) = match eye {
             Eye::Left => (
                 face_landmarks.left_eye_contour(),
@@ -124,12 +124,12 @@ impl Triangulator {
         });
         let iris_radius = radii.into_iter().sum::<f32>() / 4.0;
 
-        Ok(TriangulatedEye {
+        TriangulatedEye {
             texture: img,
             mesh: self.mesh.clone(),
             iris_center,
             iris_radius,
-        })
+        }
     }
 }
 

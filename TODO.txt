@@ -1,0 +1,1 @@
+- multi-face tracking with face recognition (ie. persistent IDs)
