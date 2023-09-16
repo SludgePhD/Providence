@@ -20,12 +20,15 @@ fn main() -> io::Result<()> {
     let mut publisher = Publisher::spawn()?;
 
     loop {
-        if let Err(e) = replay(&mut file, &mut publisher) {
-            println!();
-            eprintln!("{e}");
+        match replay(&mut file, &mut publisher) {
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {}
+            Err(e) => {
+                return Err(e);
+            }
+            Ok(()) => {}
         }
 
-        println!("restarting stream");
+        println!();
         file.seek(io::SeekFrom::Start(0))?;
     }
 }
