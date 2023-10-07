@@ -343,7 +343,7 @@ mod tests {
                     indices: vec![0, 1, 2],
                     vertices: vec![
                         Vertex {
-                            position: [0.0, -1.0],
+                            position: [0.0, -1.0, 0.5],
                             uv: [1.0, 0.5],
                         };
                         3

@@ -1,7 +1,11 @@
 use std::cmp;
 
+use nalgebra::{Quaternion, Unit, Vector3};
 use providence_io::data::{self, Mesh, Vertex};
-use zaru::{face::landmark::mediapipe::LandmarkResultV2, image::Image, num::TotalF32, rect::Rect};
+use zaru::{
+    face::landmark::mediapipe::LandmarkResultV2, image::Image, iter::zip_exact, num::TotalF32,
+    rect::Rect,
+};
 
 // winding order: clockwise (flipped later)
 // 9 vertices along the top, the remaining 7 along the bottom
@@ -50,11 +54,13 @@ impl Triangulator {
     /// - `face_landmarks`: the landmarks of the whole face, positioned on `img`.
     /// - `img`: the image the face landmarks were computed on.
     /// - `eye`: which [`Eye`] to extract from the landmarks.
+    /// - `head_rotation_inv`: inverse of the head rotation.
     pub fn triangulate_eye(
         &mut self,
         face_landmarks: &LandmarkResultV2,
         img: &Image,
         eye: Eye,
+        head_rotation_inv: Unit<Quaternion<f32>>,
     ) -> TriangulatedEye {
         let (eye_landmarks, iris_landmarks) = match eye {
             Eye::Left => (
@@ -68,7 +74,7 @@ impl Triangulator {
         };
 
         let mut points = [[0.0; 3]; 16];
-        for (out, lm) in points.iter_mut().zip(eye_landmarks) {
+        for (out, lm) in zip_exact(&mut points, eye_landmarks) {
             out[0] = lm.x();
             out[1] = lm.y();
             out[2] = lm.z();
@@ -96,19 +102,24 @@ impl Triangulator {
         let ranges = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
         let max_range = ranges.into_iter().max_by_key(|f| TotalF32(*f)).unwrap();
 
-        // FIXME: no Z coordinate in the tracking data. UVs are not yet adjusted to make
-        // the resulting mesh look correct.
+        let positions = points.iter().map(|[x, y, z]| {
+            let p = Vector3::new(
+                (x - min[0] - ranges[0] * 0.5) / max_range,
+                (y - min[1] - ranges[1] * 0.5) / max_range,
+                (z - min[2] - ranges[2] * 0.5) / max_range,
+            );
+
+            let p = head_rotation_inv * p;
+            [p.x, p.y, p.z]
+        });
+        let uvs = points
+            .iter()
+            .map(|[x, y, _z]| [(x - min[0]) / ranges[0], (y - min[1]) / ranges[1]]);
+
         self.mesh.vertices.clear();
         self.mesh
             .vertices
-            .extend(points.into_iter().map(|[x, y, _z]| Vertex {
-                position: [
-                    (x - min[0] - ranges[0] * 0.5) / max_range,
-                    (y - min[1] - ranges[1] * 0.5) / max_range,
-                    //(z - min[2] - ranges[2] * 0.5) / range,
-                ],
-                uv: [(x - min[0]) / ranges[0], (y - min[1]) / ranges[1]],
-            }));
+            .extend(zip_exact(positions, uvs).map(|(position, uv)| Vertex { position, uv }));
 
         let [iris_center, rest @ ..] = iris_landmarks.map(|lm| {
             [
@@ -148,7 +159,7 @@ impl TriangulatedEye {
             .vertices
             .into_iter()
             .map(|vert| Vertex {
-                position: [-vert.position[0], vert.position[1]],
+                position: [-vert.position[0], vert.position[1], vert.position[2]],
                 uv: vert.uv,
             })
             .collect();

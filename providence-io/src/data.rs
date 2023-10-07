@@ -155,7 +155,7 @@ pub struct Mesh {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Vertex {
-    pub position: [f32; 2],
+    pub position: [f32; 3],
     pub uv: [f32; 2],
 }
 

@@ -112,12 +112,14 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let (r, p, y) = procrustes_result.rotation().euler_angles();
             // Invert the angles so that the reported head rotation matches what looking in a mirror
             // is like.
-            let quat = UnitQuaternion::from_euler_angles(-r, p, -y);
-            let head_rotation = [quat.i, quat.j, quat.k, quat.w];
+            let head_rotation = UnitQuaternion::from_euler_angles(-r, p, -y);
+            let head_rotation_inv = head_rotation.inverse();
 
             let guard = t_triangulate.start();
-            let left_eye = tri.triangulate_eye(&face_landmark, &image, Eye::Left);
-            let right_eye = tri.triangulate_eye(&face_landmark, &image, Eye::Right);
+            let left_eye =
+                tri.triangulate_eye(&face_landmark, &image, Eye::Left, head_rotation_inv);
+            let right_eye =
+                tri.triangulate_eye(&face_landmark, &image, Eye::Right, head_rotation_inv);
             drop(guard);
 
             // Mirror the whole image, so that the eyes match what the user does.
@@ -129,14 +131,18 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                 .landmarks_mut()
                 .map_positions(|[x, y, z]| [x / max, y / max, z / max]);
             let [x, y, _] = face_landmark.landmarks().average_position();
-            let head_position = [1.0 - x, y];
 
             message.fulfill(TrackingMessage {
                 faces: vec![FaceData {
                     ephemeral_id: 0,
                     persistent_id: PersistentId::Unavailable,
-                    head_position,
-                    head_rotation,
+                    head_position: [1.0 - x, y],
+                    head_rotation: [
+                        head_rotation.i,
+                        head_rotation.j,
+                        head_rotation.k,
+                        head_rotation.w,
+                    ],
                     left_eye: left_eye.into_message(),
                     right_eye: right_eye.into_message(),
                 }],
