@@ -354,7 +354,7 @@ mod tests {
                     height: 1,
                     width: 1,
                 },
-                iris_center: [0.0; 2],
+                iris_center: [0.0; 3],
                 iris_radius: 0.25,
             }
         }

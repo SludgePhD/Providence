@@ -122,23 +122,22 @@ impl Triangulator {
             .extend(zip_exact(positions, uvs).map(|(position, uv)| Vertex { position, uv }));
 
         let [iris_center, rest @ ..] = iris_landmarks.map(|lm| {
-            [
+            let p = Vector3::new(
                 (lm.x() - min[0] - ranges[0] * 0.5) / max_range,
                 (lm.y() - min[1] - ranges[1] * 0.5) / max_range,
-            ]
+                (lm.z() - min[2] - ranges[2] * 0.5) / max_range,
+            );
+
+            head_rotation_inv * p
         });
 
-        let radii = rest.map(|[x, y]| {
-            let dx = iris_center[0] - x;
-            let dy = iris_center[1] - y;
-            (dx * dx + dy * dy).sqrt()
-        });
+        let radii = rest.map(|p| (iris_center - p).magnitude());
         let iris_radius = radii.into_iter().sum::<f32>() / 4.0;
 
         TriangulatedEye {
             texture: img,
             mesh: self.mesh.clone(),
-            iris_center,
+            iris_center: [iris_center.x, iris_center.y, iris_center.z],
             iris_radius,
         }
     }
@@ -147,7 +146,7 @@ impl Triangulator {
 pub struct TriangulatedEye {
     mesh: Mesh,
     texture: Image,
-    iris_center: [f32; 2],
+    iris_center: [f32; 3],
     iris_radius: f32,
 }
 
@@ -163,7 +162,11 @@ impl TriangulatedEye {
                 uv: vert.uv,
             })
             .collect();
-        self.iris_center = [-self.iris_center[0], self.iris_center[1]];
+        self.iris_center = [
+            -self.iris_center[0],
+            self.iris_center[1],
+            self.iris_center[2],
+        ];
         self
     }
 

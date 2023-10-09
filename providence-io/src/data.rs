@@ -142,7 +142,7 @@ pub struct Eye {
     pub texture: Image,
     pub mesh: Mesh,
     // FIXME: ideally these two would only be present if the iris is actually visible
-    pub iris_center: [f32; 2],
+    pub iris_center: [f32; 3],
     pub iris_radius: f32,
 }
 
