@@ -98,7 +98,9 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
     Worker::builder()
         .name("assembler")
         .spawn(move |AssemblerParams { landmarks, message }| {
-            let Ok((mut face_landmark, image)) = landmarks.block() else { return };
+            let Ok((mut face_landmark, image)) = landmarks.block() else {
+                return;
+            };
 
             let procrustes_result = t_procrustes.time(|| {
                 procrustes_analyzer.analyze(face_landmark.mesh_landmarks().map(|lm| {
