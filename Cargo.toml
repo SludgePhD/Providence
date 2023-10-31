@@ -9,11 +9,10 @@ description = "👁"
 
 [dependencies]
 providence-io = { path = "providence-io" }
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "6652cbf453a943439d1a5d98166c010451f68b86" }
+zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "5dbc9322b59804d6ab9b545daec0887ad3842118" }
 pawawwewism = "0.1.0"
 anyhow = "1.0.69"
 log = "0.4.17"
-nalgebra = "0.32.1"
 
 [dev-dependencies]
 env_logger = "0.10.0"

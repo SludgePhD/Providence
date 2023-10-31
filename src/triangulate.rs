@@ -1,9 +1,10 @@
-use std::cmp;
-
-use nalgebra::{Quaternion, Unit, Vector3};
 use providence_io::data::{self, Mesh, Vertex};
 use zaru::{
-    face::landmark::mediapipe::LandmarkResultV2, image::Image, iter::zip_exact, num::TotalF32,
+    face::landmark::mediapipe::LandmarkResultV2,
+    image::Image,
+    iter::zip_exact,
+    linalg::{Quat, Vec3f},
+    num::TotalF32,
     rect::Rect,
 };
 
@@ -60,7 +61,7 @@ impl Triangulator {
         face_landmarks: &LandmarkResultV2,
         img: &Image,
         eye: Eye,
-        head_rotation_inv: Unit<Quaternion<f32>>,
+        head_rotation_inv: Quat<f32>,
     ) -> TriangulatedEye {
         let (eye_landmarks, iris_landmarks) = match eye {
             Eye::Left => (
@@ -73,65 +74,51 @@ impl Triangulator {
             ),
         };
 
-        let mut points = [[0.0; 3]; 16];
-        for (out, lm) in zip_exact(&mut points, eye_landmarks) {
-            out[0] = lm.x();
-            out[1] = lm.y();
-            out[2] = lm.z();
-        }
+        let points = eye_landmarks.map(|lm| lm.position());
 
         // Compute AABB to crop image to
-        let mut min = [f32::MAX; 3];
-        let mut max = [f32::MIN; 3];
-        for pt in &points {
-            min[0] = cmp::min(TotalF32(min[0]), TotalF32(pt[0])).0;
-            min[1] = cmp::min(TotalF32(min[1]), TotalF32(pt[1])).0;
-            min[2] = cmp::min(TotalF32(min[2]), TotalF32(pt[2])).0;
-            max[0] = cmp::max(TotalF32(max[0]), TotalF32(pt[0])).0;
-            max[1] = cmp::max(TotalF32(max[1]), TotalF32(pt[1])).0;
-            max[2] = cmp::max(TotalF32(max[2]), TotalF32(pt[2])).0;
+        let mut min = Vec3f::splat(f32::MAX);
+        let mut max = Vec3f::splat(f32::MIN);
+        for pt in points {
+            min = min.min(pt);
+            max = max.max(pt);
         }
         min = min.map(f32::floor);
         max = max.map(f32::ceil);
 
         let img = img
-            .view(Rect::bounding([[min[0], min[1]], [max[0], max[1]]]).unwrap())
+            .view(Rect::bounding([min.truncate(), max.truncate()]).unwrap())
             .to_image();
 
         // Vertex positions are mapped so that all vertices fit into a rect from -0.5 to 0.5
-        let ranges = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
-        let max_range = ranges.into_iter().max_by_key(|f| TotalF32(*f)).unwrap();
-
-        let positions = points.iter().map(|[x, y, z]| {
-            let p = Vector3::new(
-                (x - min[0] - ranges[0] * 0.5) / max_range,
-                (y - min[1] - ranges[1] * 0.5) / max_range,
-                (z - min[2] - ranges[2] * 0.5) / max_range,
-            );
-
-            let p = head_rotation_inv * p;
-            [p.x, p.y, p.z]
-        });
-        let uvs = points
+        let range = max - min;
+        let max_range = *range
+            .as_array()
             .iter()
-            .map(|[x, y, _z]| [(x - min[0]) / ranges[0], (y - min[1]) / ranges[1]]);
+            .max_by_key(|f| TotalF32(**f))
+            .unwrap(); // TODO: add max_elem or something
+
+        let positions = points.into_iter().map(|p| {
+            let p = (p - min - range * 0.5) / max_range;
+            head_rotation_inv * p
+        });
+        let uvs = points.iter().map(|&p| ((p - min) / range).truncate());
 
         self.mesh.vertices.clear();
         self.mesh
             .vertices
-            .extend(zip_exact(positions, uvs).map(|(position, uv)| Vertex { position, uv }));
+            .extend(zip_exact(positions, uvs).map(|(position, uv)| Vertex {
+                position: position.into_array(),
+                uv: uv.into_array(),
+            }));
 
         let [iris_center, rest @ ..] = iris_landmarks.map(|lm| {
-            let p = Vector3::new(
-                (lm.x() - min[0] - ranges[0] * 0.5) / max_range,
-                (lm.y() - min[1] - ranges[1] * 0.5) / max_range,
-                (lm.z() - min[2] - ranges[2] * 0.5) / max_range,
-            );
+            let p = (lm.position() - min - range * 0.5) / max_range;
 
             head_rotation_inv * p
         });
 
-        let radii = rest.map(|p| (iris_center - p).magnitude());
+        let radii = rest.map(|p| (iris_center - p).length());
         let iris_radius = radii.into_iter().sum::<f32>() / 4.0;
 
         TriangulatedEye {

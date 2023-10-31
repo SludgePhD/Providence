@@ -1,8 +1,8 @@
 use std::io;
 
 use macroquad::{models::Vertex, prelude::*, texture::Texture2D};
-use nalgebra::{Quaternion, Unit, UnitQuaternion};
 use providence_io::{data::Eye, net::Subscriber};
+use zaru::linalg::Quat;
 
 const SCALE: f32 = 120.0;
 
@@ -40,7 +40,7 @@ async fn main() -> io::Result<()> {
         render_eye(&face.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
         render_eye(&face.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
         let [x, y, z, w] = face.head_rotation;
-        render_rotation(Unit::new_normalize(Quaternion::new(w, x, y, z)));
+        render_rotation(Quat::from_components(w, x, y, z).normalize());
         next_frame().await;
     }
 }
@@ -75,11 +75,11 @@ fn render_eye(eye: &Eye, scale: f32, offset: Vec3) {
     draw_circle(x, y, r, Color::new(1.0, 0.5, 0.5, 0.15));
 }
 
-fn render_rotation(rot: UnitQuaternion<f32>) {
-    let (roll, pitch, yaw) = rot.euler_angles();
-    draw_text_centered(&format!("R={:.02}°", roll.to_degrees()), 20.0);
-    draw_text_centered(&format!("P={:.02}°", pitch.to_degrees()), 40.0);
-    draw_text_centered(&format!("Y={:.02}°", yaw.to_degrees()), 60.0);
+fn render_rotation(rot: Quat<f32>) {
+    let [x, y, z] = rot.to_rotation_xyz();
+    draw_text_centered(&format!("X={:.02}°", x.to_degrees()), 20.0);
+    draw_text_centered(&format!("Y={:.02}°", y.to_degrees()), 40.0);
+    draw_text_centered(&format!("Z={:.02}°", z.to_degrees()), 60.0);
 }
 
 fn draw_text_centered(text: &str, y: f32) {

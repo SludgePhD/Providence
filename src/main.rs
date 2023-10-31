@@ -3,7 +3,6 @@ mod triangulate;
 use std::collections::VecDeque;
 use std::{cmp, io};
 
-use nalgebra::UnitQuaternion;
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence_io::data::{FaceData, PersistentId, TrackingMessage};
 use providence_io::net::Publisher;
@@ -15,6 +14,7 @@ use zaru::filter::one_euro::OneEuroFilter;
 use zaru::filter::{TimeBasedFilter, TimedFilterAdapter};
 use zaru::image::Image;
 use zaru::landmark::{Estimator, LandmarkFilter, LandmarkTracker};
+use zaru::linalg::{vec3, Quat};
 use zaru::num::TotalF32;
 use zaru::procrustes::ProcrustesAnalyzer;
 use zaru::rect::RotatedRect;
@@ -107,15 +107,15 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                     // Flip Y to bring us to canonical 3D coordinates (where Y points up).
                     // Only rotation matters, so we don't have to correct for the added
                     // translation.
-                    (lm.x(), -lm.y(), lm.z())
+                    vec3(lm.x(), -lm.y(), lm.z())
                 }))
             });
 
-            let (r, p, y) = procrustes_result.rotation().euler_angles();
+            let [x, y, z] = procrustes_result.rotation().to_rotation_xyz();
             // Invert the angles so that the reported head rotation matches what looking in a mirror
             // is like.
-            let head_rotation = UnitQuaternion::from_euler_angles(-r, p, -y);
-            let head_rotation_inv = head_rotation.inverse();
+            let head_rotation = Quat::from_rotation_xyz(-x, y, -z);
+            let head_rotation_inv = head_rotation.conjugate();
 
             let guard = t_triangulate.start();
             let left_eye =
@@ -129,16 +129,14 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
             // Map all landmarks into range 0..=1 for computing the head position
             let max = cmp::max(image.width(), image.height()) as f32;
-            face_landmark
-                .landmarks_mut()
-                .map_positions(|[x, y, z]| [x / max, y / max, z / max]);
-            let [x, y, _] = face_landmark.landmarks().average_position();
+            face_landmark.landmarks_mut().map_positions(|p| p / max);
+            let avg = face_landmark.landmarks().average_position();
 
             message.fulfill(TrackingMessage {
                 faces: vec![FaceData {
                     ephemeral_id: 0,
                     persistent_id: PersistentId::Unavailable,
-                    head_position: [1.0 - x, y],
+                    head_position: [1.0 - avg.x, avg.y],
                     head_rotation: [
                         head_rotation.i,
                         head_rotation.j,
@@ -194,7 +192,7 @@ fn face_track_worker() -> Result<Worker<FaceTrackParams>, io::Error> {
                     .iter()
                     .max_by_key(|det| TotalF32(det.confidence()))
                 {
-                    let rect = target.bounding_rect().move_by(view_rect.x(), view_rect.y());
+                    let rect = target.bounding_rect().move_by(view_rect.top_left());
                     let rect = RotatedRect::new(rect, target.angle());
                     log::trace!("start tracking face at {:?}", rect);
                     tracker.set_roi(rect);
