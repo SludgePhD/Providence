@@ -8,7 +8,7 @@ use std::{
 
 use pawawwewism::reactive::{Disconnected, Reader, Value};
 use uwuhi_async::{
-    packet::name::Label,
+    name::Label,
     resolver::{AsyncResolver, SyncResolver},
     service::{
         advertising::AsyncAdvertiser,
