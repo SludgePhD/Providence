@@ -415,6 +415,25 @@ mod tests {
     }
 
     #[test]
+    fn field_name_change() {
+        #[allow(dead_code)]
+        #[derive(Deserialize)]
+        struct S1 {
+            a: u8,
+            b: u32,
+        }
+
+        #[allow(dead_code)]
+        #[derive(Deserialize)]
+        struct S2 {
+            a: u8,
+            c: u32,
+        }
+
+        different::<S1, S2>();
+    }
+
+    #[test]
     fn string_ownership() {
         #[allow(dead_code)]
         #[derive(Deserialize)]

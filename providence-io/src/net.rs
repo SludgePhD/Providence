@@ -360,6 +360,7 @@ mod tests {
         }
 
         TrackingMessage {
+            timestamp: 123456,
             faces: vec![FaceData {
                 ephemeral_id: 123,
                 persistent_id: PersistentId::Unknown,

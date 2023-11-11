@@ -12,6 +12,16 @@ static FINGERPRINT: OnceLock<u64> = OnceLock::new();
 /// The top-level protocol message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackingMessage {
+    /// Timestamp in microseconds since an unspecified point in time.
+    ///
+    /// Wraps to zero after `u32::MAX`. Clients must handle this correctly.
+    ///
+    /// The tracker should choose a timestamp source that allows precisely relating two subsequent
+    /// tracking messages in time. The time stamp should be captured as early in the tracking
+    /// pipeline as possible (ideally in the camera hardware itself), in order to eliminate software
+    /// timing jitter during processing.
+    pub timestamp: u32,
+
     /// The list of tracked faces that are currently in view.
     pub faces: Vec<FaceData>,
 }

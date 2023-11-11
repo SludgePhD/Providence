@@ -1,6 +1,7 @@
 mod triangulate;
 
 use std::collections::VecDeque;
+use std::time::Instant;
 use std::{cmp, io};
 
 use pawawwewism::{promise, Promise, PromiseHandle, Worker};
@@ -21,6 +22,8 @@ use zaru::rect::RotatedRect;
 use zaru::timer::{FpsCounter, Timer};
 use zaru::video::webcam::{ParamPreference, Webcam, WebcamOptions};
 
+const TIMESTAMP_OFFSET: u32 = u32::MAX - 10_000_000; // 10 seconds before overflow
+
 #[zaru::main]
 fn main() -> anyhow::Result<()> {
     let mut face_tracker = face_track_worker()?;
@@ -33,6 +36,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     webcam.read()?;
 
+    let reference_time = Instant::now();
     let mut publisher = Publisher::spawn()?;
     let mut message_queue = VecDeque::new();
     let mut fps = FpsCounter::new("webcam");
@@ -54,6 +58,8 @@ fn main() -> anyhow::Result<()> {
         // NB: the non-flipped webcam image is "the wrong way around" - but flipping the whole image
         // is *very* expensive for some reason, so we only flip the final result.
         let image = webcam.read()?;
+        let timestamp = Instant::now().duration_since(reference_time).as_micros()
+            + u128::from(TIMESTAMP_OFFSET);
 
         let (landmarks, landmarks_handle) = promise();
         let (message, message_handle) = promise();
@@ -68,15 +74,19 @@ fn main() -> anyhow::Result<()> {
 
         if let Some(handle) = message_queue.front() {
             if !handle.will_block() {
-                match message_queue.pop_front().unwrap().block() {
-                    Ok(msg) => {
-                        publisher.publish(msg);
-                    }
+                let mut message = match message_queue.pop_front().unwrap().block() {
+                    Ok(msg) => msg,
                     Err(_) => {
-                        // If this promise is blocked, no face was detected.
-                        publisher.publish(TrackingMessage { faces: Vec::new() });
+                        // If this promise was dropped, no face was detected.
+                        TrackingMessage {
+                            timestamp: 0,
+                            faces: Vec::new(),
+                        }
                     }
-                }
+                };
+
+                message.timestamp = timestamp as u32;
+                publisher.publish(message);
             }
         }
     }
@@ -133,6 +143,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
             let avg = face_landmark.landmarks().average_position();
 
             message.fulfill(TrackingMessage {
+                timestamp: 0, // filled in later
                 faces: vec![FaceData {
                     ephemeral_id: 0,
                     persistent_id: PersistentId::Unavailable,
