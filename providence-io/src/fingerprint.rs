@@ -434,6 +434,25 @@ mod tests {
     }
 
     #[test]
+    fn field_order_change() {
+        #[allow(dead_code)]
+        #[derive(Deserialize)]
+        struct S1 {
+            a: u8,
+            b: u8,
+        }
+
+        #[allow(dead_code)]
+        #[derive(Deserialize)]
+        struct S2 {
+            b: u8,
+            a: u8,
+        }
+
+        different::<S1, S2>();
+    }
+
+    #[test]
     fn string_ownership() {
         #[allow(dead_code)]
         #[derive(Deserialize)]

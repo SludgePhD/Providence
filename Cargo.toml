@@ -9,21 +9,22 @@ description = "👁"
 
 [dependencies]
 providence-io = { path = "providence-io" }
-zaru = { git = "https://github.com/SludgePhD/Zaru.git", rev = "5dbc9322b59804d6ab9b545daec0887ad3842118" }
+zaru = { git = "ssh://git@github.com/SludgePhD/Zaru.git", rev = "3457da10370b2be4abf728968082e313429efb97" }
 pawawwewism = "0.1.0"
 anyhow = "1.0.69"
 log = "0.4.17"
 
 [dev-dependencies]
-env_logger = "0.10.0"
+env_logger = "0.11.2"
 macroquad = "0.4.2"
 
 [profile.dev]
 opt-level = 2
 
-#[patch.'https://github.com/SludgePhD/Zaru.git']
+[patch.'ssh://git@github.com/SludgePhD/Zaru.git']
 #zaru = { path = "../Zaru/crates/zaru" }
 
-#[patch.crates-io]
+[patch.crates-io]
 #pawawwewism = { path = "../Pawawwewism" }
 #linuxvideo = { path = "../LinuxVideo" }
+#fev = { path = "../FeV" }

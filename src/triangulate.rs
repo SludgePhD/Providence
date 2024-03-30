@@ -162,7 +162,7 @@ impl TriangulatedEye {
             texture: data::Image {
                 width: self.texture.width(),
                 height: self.texture.height(),
-                data: self.texture.data().to_vec(),
+                data: self.texture.with_data(|data| data.to_vec()),
             },
             mesh: self.mesh,
             iris_center: self.iris_center,
