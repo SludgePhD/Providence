@@ -27,8 +27,8 @@ static TRIS: &[[u8; 3]] = &[
     [7, 8, 9],
 ];
 
-#[derive(Clone, Copy)]
-pub enum Eye {
+#[derive(Debug, Clone, Copy)]
+pub enum Side {
     Left,
     Right,
 }
@@ -60,15 +60,15 @@ impl Triangulator {
         &mut self,
         face_landmarks: &LandmarkResultV2,
         img: &Image,
-        eye: Eye,
+        side: Side,
         head_rotation_inv: Quat<f32>,
     ) -> TriangulatedEye {
-        let (eye_landmarks, iris_landmarks) = match eye {
-            Eye::Left => (
+        let (eye_landmarks, iris_landmarks) = match side {
+            Side::Left => (
                 face_landmarks.left_eye_contour(),
                 face_landmarks.left_iris(),
             ),
-            Eye::Right => (
+            Side::Right => (
                 face_landmarks.right_eye_contour(),
                 face_landmarks.right_iris(),
             ),

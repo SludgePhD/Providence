@@ -8,7 +8,7 @@ use pawawwewism::{promise, Promise, PromiseHandle, Worker};
 use providence_io::data::{FaceData, PersistentId, TrackingMessage};
 use providence_io::net::Publisher;
 use tracing::debug_span;
-use triangulate::{Eye, Triangulator};
+use triangulate::{Side, Triangulator};
 use zaru::detection::Detector;
 use zaru::face::detection::ShortRangeNetwork;
 use zaru::face::landmark::mediapipe::{self, FaceMeshV2, LandmarkResultV2};
@@ -122,8 +122,8 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
 
             let (left_eye, right_eye) = debug_span!("triangulate").in_scope(|| {
                 (
-                    tri.triangulate_eye(&face_landmark, &image, Eye::Left, head_rotation_inv),
-                    tri.triangulate_eye(&face_landmark, &image, Eye::Right, head_rotation_inv),
+                    tri.triangulate_eye(&face_landmark, &image, Side::Left, head_rotation_inv),
+                    tri.triangulate_eye(&face_landmark, &image, Side::Right, head_rotation_inv),
                 )
             });
 
