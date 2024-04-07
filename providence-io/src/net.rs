@@ -7,6 +7,7 @@ use std::{
 };
 
 use pawawwewism::reactive::{Disconnected, Reader, Value};
+use tracing::{debug, info};
 use uwuhi_async::{
     name::Label,
     resolver::{AsyncResolver, SyncResolver},
@@ -39,7 +40,7 @@ impl Publisher {
             })
             .collect::<Vec<_>>();
 
-        log::info!("local private network addresses: {:?}", local_addrs);
+        info!("local private network addresses: {:?}", local_addrs);
         let (&first_addr, more_addrs) = match &*local_addrs {
             [first, rest @ ..] => (first, rest),
             _ => {
@@ -82,7 +83,7 @@ impl Publisher {
 
             loop {
                 let (mut stream, sockaddr) = listener.accept().await?;
-                log::info!("client connected: {}", sockaddr);
+                info!("client connected: {}", sockaddr);
 
                 // Clean up periodically to avoid unbounded memory growth.
                 streams.retain(|task| !task.is_finished());
@@ -95,7 +96,7 @@ impl Publisher {
 
                     // If there's an existing message available, send it to the client immediately.
                     if let Ok(Some(msg)) = message_reader.get() {
-                        log::debug!("sending existing message to client");
+                        debug!("sending existing message to client");
                         msg.async_write(&mut stream).await?;
                     }
 
@@ -145,7 +146,7 @@ impl Publisher {
             if self.connections_reader.get().unwrap() != 0 {
                 break;
             }
-            log::info!("waiting for connection");
+            info!("waiting for connection");
             self.connections_reader.block_until_changed();
         }
     }
@@ -181,7 +182,7 @@ impl Subscriber {
                 ));
             }
         };
-        log::info!(
+        info!(
             "discovered providence on {}:{}",
             details.host(),
             details.port(),
@@ -195,7 +196,7 @@ impl Subscriber {
                 IpAddr::V6(_) => None,
             });
         let ip = ips.next().ok_or(io::ErrorKind::TimedOut)?;
-        log::info!("resolved server IP: {}", ip);
+        info!("resolved server IP: {}", ip);
 
         Self::connect(SocketAddrV4::new(ip, details.port()))
     }
@@ -222,7 +223,7 @@ impl Subscriber {
                 ));
             }
         };
-        log::info!(
+        info!(
             "discovered providence on {}:{}",
             details.host(),
             details.port(),
@@ -237,7 +238,7 @@ impl Subscriber {
                 IpAddr::V6(_) => None,
             });
         let ip = ips.next().ok_or(io::ErrorKind::TimedOut)?;
-        log::info!("resolved server IP: {}", ip);
+        info!("resolved server IP: {}", ip);
 
         Self::connect(SocketAddrV4::new(ip, details.port()))
     }
@@ -248,7 +249,7 @@ impl Subscriber {
 
         let task = Task::spawn(async move {
             let mut stream = async_std::net::TcpStream::connect(addr).await?;
-            log::info!("connected to server at {addr}");
+            info!("connected to server at {addr}");
             loop {
                 let msg = Arc::new(TrackingMessage::async_read(&mut stream).await?);
                 message.set(Some(msg));
