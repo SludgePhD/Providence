@@ -1,8 +1,7 @@
 use std::io::{self, BufRead, Write};
 use std::sync::OnceLock;
 
-use async_std::io::{Read as AsyncRead, Write as AsyncWrite};
-use async_std::prelude::*;
+use futures_lite::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use serde::{Deserialize, Serialize};
 
 use crate::fingerprint::serde_fingerprint;

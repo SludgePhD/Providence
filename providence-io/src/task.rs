@@ -9,10 +9,29 @@ use std::{
     thread,
 };
 
-use async_std::task::{self, JoinHandle};
-use futures_lite::future::FutureExt;
+use async_executor::Executor;
+use futures_lite::future::{block_on, FutureExt};
 
-use crate::drop;
+use crate::drop::{self, defer};
+
+fn executor() -> &'static Executor<'static> {
+    static EXEC: Executor<'static> = Executor::new();
+    static SPAWNED: AtomicBool = AtomicBool::new(false);
+
+    if !SPAWNED.swap(true, Ordering::Relaxed) {
+        thread::Builder::new()
+            .name("providence-executor".into())
+            .spawn(|| {
+                let _d = defer(|| tracing::error!("providence executor thread has died!"));
+                loop {
+                    block_on(EXEC.tick());
+                }
+            })
+            .unwrap();
+    }
+
+    &EXEC
+}
 
 /// An owned, asynchronous task running in the background.
 ///
@@ -21,7 +40,7 @@ use crate::drop;
 /// [`Task`] will be propagated to the thread or task holding the corresponding [`Task`] value
 /// (either when calling [`Task::block`] or when dropping the value).
 pub struct Task<T> {
-    handle: Option<JoinHandle<Result<T, Box<dyn Any + Send>>>>,
+    handle: Option<async_task::Task<Result<T, Box<dyn Any + Send>>>>,
     /// Set to `true` when the task exits (in *any* fashion, including cancellation and panicking).
     finished: Arc<AtomicBool>,
 }
@@ -35,13 +54,15 @@ impl<T> Task<T> {
     {
         let finished = Arc::new(AtomicBool::new(false));
         let finished2 = finished.clone();
-        Self {
-            handle: Some(task::spawn(async move {
-                let _setflag = drop::defer(|| finished2.store(true, Ordering::Relaxed));
 
-                // Unwind safety: this is the code that makes it safe.
-                AssertUnwindSafe(future).catch_unwind().await
-            })),
+        let handle = executor().spawn(async move {
+            let _setflag = drop::defer(|| finished2.store(true, Ordering::Relaxed));
+
+            AssertUnwindSafe(future).catch_unwind().await
+        });
+
+        Self {
+            handle: Some(handle),
             finished,
         }
     }
@@ -51,7 +72,7 @@ impl<T> Task<T> {
     ///
     /// If the task panicked, this will propagate the panic to the caller.
     pub fn block(mut self) -> T {
-        match task::block_on(self.handle.take().unwrap()) {
+        match block_on(self.handle.take().unwrap()) {
             Ok(value) => value,
             Err(payload) => {
                 panic::resume_unwind(payload);
@@ -78,7 +99,7 @@ impl<T> Drop for Task<T> {
             // This is mostly useful in tests. Otherwise there's a small window in which a panicking
             // task reports `is_finished` but still won't propagate the panic when dropped.
             if self.is_finished() {
-                if let Err(payload) = task::block_on(handle) {
+                if let Err(payload) = block_on(handle) {
                     if !thread::panicking() {
                         panic::resume_unwind(payload);
                     }
@@ -87,7 +108,7 @@ impl<T> Drop for Task<T> {
                 // This calls `block_on`, and may be executed in an async context.
                 // However, this will only actually block until the canceled task stops running, and if
                 // that task blocks, that's a separate issue.
-                if let Some(Err(payload)) = task::block_on(handle.cancel()) {
+                if let Some(Err(payload)) = block_on(handle.cancel()) {
                     if !thread::panicking() {
                         panic::resume_unwind(payload);
                     }

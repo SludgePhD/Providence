@@ -9,22 +9,26 @@ description = "👁"
 
 [dependencies]
 providence-io = { path = "providence-io" }
-zaru = { git = "ssh://git@github.com/SludgePhD/Zaru.git", rev = "aa6f4be45c56b5888bc24b243fdc23d041e5d023" }
+zaru = { git = "ssh://git@github.com/SludgePhD/Zaru.git", rev = "d23b4399892ba19eed9f79cf77f4294e863d8f1c" }
 pawawwewism = "0.1.0"
 anyhow = "1.0.69"
 tracing = "0.1.40"
 
 [dev-dependencies]
-env_logger = "0.11.2"
 macroquad = "0.4.2"
 
 [profile.dev]
 opt-level = 2
 
-[patch.'ssh://git@github.com/SludgePhD/Zaru.git']
+#[patch.'ssh://git@github.com/SludgePhD/Zaru.git']
 #zaru = { path = "../Zaru/crates/zaru" }
 
 [patch.crates-io]
 #pawawwewism = { path = "../Pawawwewism" }
 #linuxvideo = { path = "../LinuxVideo" }
 #fev = { path = "../FeV" }
+compeg = { path = "../Compeg" }
+
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "54d22a89d33421cce0eae1255aeec9eabbb9ac8e" }
+
+#uwuhi-async = { path = "../uwuhi/uwuhi-async" }

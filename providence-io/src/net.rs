@@ -1,11 +1,12 @@
 use std::{
-    io::{self},
-    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener},
+    io,
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream},
     ops::ControlFlow,
     sync::Arc,
     time::Duration,
 };
 
+use async_io::Async;
 use pawawwewism::reactive::{Disconnected, Reader, Value};
 use tracing::{debug, info};
 use uwuhi_async::{
@@ -79,7 +80,7 @@ impl Publisher {
         let listener = Task::spawn(async move {
             // (contains `Task`s so that they make progress without us polling them)
             let mut streams = Vec::<Task<_>>::new();
-            let listener = async_std::net::TcpListener::from(tcp_listener);
+            let listener = Async::new(tcp_listener)?;
 
             loop {
                 let (mut stream, sockaddr) = listener.accept().await?;
@@ -248,7 +249,7 @@ impl Subscriber {
         let reader = message.reader();
 
         let task = Task::spawn(async move {
-            let mut stream = async_std::net::TcpStream::connect(addr).await?;
+            let mut stream = Async::<TcpStream>::connect(addr).await?;
             info!("connected to server at {addr}");
             loop {
                 let msg = Arc::new(TrackingMessage::async_read(&mut stream).await?);
@@ -327,8 +328,6 @@ mod tests {
 
     #[test]
     fn io() {
-        env_logger::init();
-
         let mut p = Publisher::spawn().unwrap();
         p.publish(mk_test_msg());
         // Connect after publishing so that an initial message will be received.
