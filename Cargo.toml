@@ -27,8 +27,8 @@ opt-level = 2
 #pawawwewism = { path = "../Pawawwewism" }
 #linuxvideo = { path = "../LinuxVideo" }
 #fev = { path = "../FeV" }
-compeg = { path = "../Compeg" }
+#compeg = { path = "../Compeg" }
 
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "54d22a89d33421cce0eae1255aeec9eabbb9ac8e" }
+#wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "54d22a89d33421cce0eae1255aeec9eabbb9ac8e" }
 
 #uwuhi-async = { path = "../uwuhi/uwuhi-async" }
