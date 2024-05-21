@@ -1,11 +1,10 @@
 use providence_io::data::{self, Mesh, Vertex};
 use zaru::{
     face::landmark::mediapipe::LandmarkResultV2,
-    image::Image,
+    image::{rect::Rect, Image},
     iter::zip_exact,
     linalg::{Quat, Vec3f},
     num::TotalF32,
-    rect::Rect,
 };
 
 // winding order: clockwise (flipped later)
@@ -131,8 +130,8 @@ impl Triangulator {
 }
 
 pub struct TriangulatedEye {
+    pub texture: Image,
     mesh: Mesh,
-    texture: Image,
     iris_center: [f32; 3],
     iris_radius: f32,
 }

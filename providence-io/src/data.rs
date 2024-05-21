@@ -117,7 +117,7 @@ pub struct FaceData {
     /// A meaningful, manually assigned identity name corresponding to the tracked person.
     ///
     /// This is not always immediately available (ie. it may be computed in the background), or
-    /// available at all (if the person does not have an ID assigned to it, or if the tracker does
+    /// available at all (if the person does not have an ID assigned to them, or if the tracker does
     /// not implement persistent IDs).
     pub persistent_id: PersistentId,
 
@@ -129,8 +129,8 @@ pub struct FaceData {
     ///
     /// The 4 floats are `x`, `y`, `z`, `w` in `q = w * x*i * y*j * z*k`.
     pub head_rotation: [f32; 4],
-    pub left_eye: Eye,
-    pub right_eye: Eye,
+    pub left_eye: Option<Eye>,
+    pub right_eye: Option<Eye>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

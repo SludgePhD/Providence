@@ -37,8 +37,14 @@ async fn main() -> io::Result<()> {
         let [x, y] = face.head_position;
         let [x, y] = [x * width, y * height];
 
-        render_eye(&face.left_eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
-        render_eye(&face.right_eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
+        if let Some(eye) = &face.left_eye {
+            render_eye(eye, SCALE, Vec3::new(x - SCALE * 1.5, y, 0.0));
+        }
+        if let Some(eye) = &face.right_eye {
+            render_eye(eye, SCALE, Vec3::new(x + SCALE * 1.5, y, 0.0));
+        }
+        draw_circle(x, y, 5.0, Color::new(1.0, 1.0, 1.0, 1.0));
+
         let [x, y, z, w] = face.head_rotation;
         render_rotation(Quat::from_components(w, x, y, z).normalize());
         next_frame().await;

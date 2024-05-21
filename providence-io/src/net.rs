@@ -366,8 +366,8 @@ mod tests {
                 persistent_id: PersistentId::Unknown,
                 head_position: [1.0, 2.0],
                 head_rotation: Default::default(),
-                left_eye: mk_eye(),
-                right_eye: mk_eye(),
+                left_eye: Some(mk_eye()),
+                right_eye: Some(mk_eye()),
             }],
         }
     }
