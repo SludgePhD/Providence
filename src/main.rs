@@ -27,16 +27,18 @@ const TIMESTAMP_OFFSET: u32 = u32::MAX - 10_000_000; // 10 seconds before overfl
 
 const ENABLE_POSTPROC: bool = false;
 
+fn webcam_opts() -> WebcamOptions {
+    WebcamOptions::default()
+        .fps(30)
+        .prefer(ParamPreference::Resolution)
+}
+
 #[zaru::main]
 fn main() -> anyhow::Result<()> {
     let mut face_tracker = face_track_worker()?;
     let mut assembler = assembler()?;
 
-    let mut webcam = Webcam::open(
-        WebcamOptions::default()
-            .fps(30)
-            .prefer(ParamPreference::Resolution),
-    )?;
+    let mut webcam = Webcam::open(webcam_opts())?;
     webcam.read()?;
 
     let reference_time = Instant::now();
@@ -49,12 +51,14 @@ fn main() -> anyhow::Result<()> {
             // Make sure to drop old messages so that we don't sent anything outdated to new clients.
             message_queue.clear();
             publisher.clear();
-            publisher.block_until_connected();
-            // FIXME: blocking here prevents us from detecting that the webcam disappeared until a client connects!
-            // it'd be better to do this `async`.
 
-            // Drain all pending webcam frames to ensure we resume with more recent frames.
-            webcam.flush()?;
+            // Close the webcam device. We reopen it when a client connects. This allows the webcam
+            // to be idle or even replugged while the tracker is idle, and allows the tracker to
+            // survive system suspend.
+            drop(webcam);
+            publisher.block_until_connected();
+
+            webcam = Webcam::open(webcam_opts())?;
         }
 
         // NB: the non-flipped webcam image is "the wrong way around" - we flip the data/sprites in
