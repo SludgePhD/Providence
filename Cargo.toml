@@ -9,13 +9,13 @@ description = "👁"
 
 [dependencies]
 providence-io = { path = "providence-io" }
-zaru = { git = "ssh://git@github.com/SludgePhD/Zaru.git", rev = "b9431fa3fc8675be5e013fc12b07a67d4e0017ef" }
+zaru = { git = "ssh://git@github.com/SludgePhD/Zaru.git", rev = "8ce433236038ef0d7dc441aa19247604edaf2467" }
 pawawwewism = "0.1.0"
 anyhow = "1.0.69"
 tracing = "0.1.40"
 
 [dev-dependencies]
-macroquad = "0.4.2"
+macroquad = "0.4.12"
 
 [profile.dev]
 opt-level = 2

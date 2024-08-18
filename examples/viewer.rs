@@ -66,7 +66,8 @@ fn render_eye(eye: &Eye, scale: f32, offset: Vec3) {
                 // FIXME: including the Z coordinate results in the eyes getting mostly culled away
                 position: Vec3::new(vert.position[0], vert.position[1], 0.0) * scale + offset,
                 uv: Vec2::new(vert.uv[0], vert.uv[1]),
-                color: WHITE,
+                color: WHITE.into(),
+                normal: Vec4::Z,
             })
             .collect(),
         indices: eye.mesh.indices.clone(),

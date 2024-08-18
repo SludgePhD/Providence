@@ -1,1 +1,2 @@
 - multi-face tracking with face recognition (ie. persistent IDs)
+- macroquad is unreliable (breaking changes in minor versions), replace it

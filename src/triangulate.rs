@@ -62,7 +62,7 @@ impl Triangulator {
         side: Side,
         head_rotation_inv: Quat<f32>,
     ) -> TriangulatedEye {
-        let (eye_landmarks, iris_landmarks) = match side {
+        let (points, iris_landmarks) = match side {
             Side::Left => (
                 face_landmarks.left_eye_contour(),
                 face_landmarks.left_iris(),
@@ -72,8 +72,6 @@ impl Triangulator {
                 face_landmarks.right_iris(),
             ),
         };
-
-        let points = eye_landmarks.map(|lm| lm.position());
 
         // Compute AABB to crop image to
         let mut min = Vec3f::splat(f32::MAX);
@@ -112,7 +110,7 @@ impl Triangulator {
             }));
 
         let [iris_center, rest @ ..] = iris_landmarks.map(|lm| {
-            let p = (lm.position() - min - range * 0.5) / max_range;
+            let p = (lm - min - range * 0.5) / max_range;
 
             head_rotation_inv * p
         });

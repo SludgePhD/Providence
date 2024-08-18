@@ -119,7 +119,7 @@ fn assembler() -> Result<Worker<AssemblerParams>, io::Error> {
                             // Flip Y to bring us to canonical 3D coordinates (where Y points up).
                             // Only rotation matters, so we don't have to correct for the added
                             // translation.
-                            vec3(lm.x(), -lm.y(), lm.z())
+                            vec3(lm.x, -lm.y, lm.z)
                         }))
                     });
 
